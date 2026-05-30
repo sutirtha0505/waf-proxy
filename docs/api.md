@@ -9,3 +9,4 @@
 | POST | `/api/admin/requests/{id}/unsafe` | Label request with attack vector |
 | GET | `/api/admin/vectors` | List attack vectors |
 | POST | `/api/admin/vectors` | Add attack vector |
+| GET | `/api/admin/blocked` | List requests blocked by AI |

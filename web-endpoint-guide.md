@@ -46,6 +46,9 @@ Audience
 - GET/POST `/api/admin/vectors`
   - GET returns map of `name -> code` for attack vectors.
   - POST creates a new vector: `{ "category": "x", "name": "Name", "code": <int?> }` (server will assign code if 0).
+- GET `/api/admin/blocked`
+  - Returns: `[{ "request_id": "<id>", "timestamp": <unix>, "path": "...", "method": "GET", "ai_response": {...}, "decision_summary": "...", "confidence_label": "..." }, ...]`
+  - Purpose: list recent requests that were automatically blocked by the AI (saved into `audit_logs` as `event_type = 'blocked'`). Useful to see what the AI prevented from reaching the origin.
 
 4) Request lifecycle (detailed step-by-step)
 1. Client makes HTTP request to the WAF (this could be a browser, an automated test, or `scripts/replay_dvwa_hits.sh`). The target path may point at the DVWA service behind the WAF.
@@ -203,6 +206,10 @@ sqlite3 data/waf.db "select * from labeled_data order by created_at desc limit 1
   - `web/dashboard/static/js/requests.js` — renders checkboxes, preserves select-all state, posts to bulk endpoints.
   - `web/dashboard/static/js/review.js` — still supports single-item review + vector creation.
 - The code compiles (`go build ./...` completed successfully during the change).
+
+- I added a blocked-events path and persistence:
+  - `internal/proxy/handler.go` now calls `SaveBlockedEvent` when the AI blocks a request so operators can inspect what the AI prevented from reaching the origin.
+  - `internal/admin/handlers.go` exposes `GET /api/admin/blocked` which lists those blocked events (stored as `event_type = 'blocked'` in `audit_logs`).
 
 Appendix: Quick checklist for reproducing a single request end-to-end
 - Start DVWA + AI engine (docker-compose) and the WAF server.
