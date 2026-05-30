@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smart-waf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smart-waf
+  template:
+    metadata:
+      labels:
+        app: smart-waf
+    spec:
+      containers:
+        - name: waf
+          image: smart-waf:latest
+          ports:
+            - containerPort: 8080
+            - containerPort: 9090

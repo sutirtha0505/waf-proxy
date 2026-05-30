@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <title>Pending Requests</title>
+</head>
+<body>
+  <header><h1>Pending Requests</h1><nav><a href="/dashboard">Dashboard</a></nav></header>
+  <main>
+    <div class="bulk-actions">
+      <label><input type="checkbox" id="select-all-cb"> Select All</label>
+      <button id="bulk-safe-btn">Mark Selected Safe</button>
+      <button id="bulk-unsafe-btn">Mark Selected Unsafe</button>
+      <button id="bulk-delete-btn">Delete Selected</button>
+      <span id="bulk-status"></span>
+    </div>
+    <ul id="request-list"></ul>
+    <dialog id="review-modal">
+      <pre id="request-json"></pre>
+      <select id="vector-select"></select>
+      <button id="safe-btn">Safe</button>
+      <button id="unsafe-btn">Unsafe</button>
+      <button id="add-vector-btn">Add New Attack Vector</button>
+      <button onclick="document.getElementById('review-modal').close()">Close</button>
+    </dialog>
+  </main>
+  <script src="/static/js/requests.js"></script>
+  <script src="/static/js/review.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+services:
+  waf:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.waf
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    depends_on:
+      - ai-engine
+      - dvwa
+    volumes:
+      - ../../data:/app/data
+
+  ai-engine:
+    build:
+      context: ../../ai-engine
+    ports:
+      - "5001:5001"
+
+  dvwa:
+    image: vulnerables/web-dvwa
+    ports:
+      - "8888:80"

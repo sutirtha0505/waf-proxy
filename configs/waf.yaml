@@ -1,0 +1,36 @@
+proxy:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 1m0s
+  backend_url: "http://localhost:8888"
+
+ai:
+  url: "http://localhost:5001"
+  timeout: 2s
+  health_interval: 5s
+  max_retries: 2
+
+admin:
+  threshold: 85.0
+
+dashboard:
+  port: 9090
+
+database:
+  path: "./data/waf.db"
+
+static_extensions:
+  - .css
+  - .js
+  - .png
+  - .jpg
+  - .jpeg
+  - .gif
+  - .svg
+  - .ico
+  - .woff
+  - .woff2
+  - .ttf
+  - .eot
+  - .map

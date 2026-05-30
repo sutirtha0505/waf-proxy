@@ -1,0 +1,11 @@
+proxy:
+  port: 8080
+  backend_url: "http://localhost:8888"
+ai:
+  url: "http://localhost:5001"
+admin:
+  threshold: 85.0
+dashboard:
+  port: 9090
+database:
+  path: "./data/waf.db"

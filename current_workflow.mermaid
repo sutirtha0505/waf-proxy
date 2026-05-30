@@ -1,0 +1,89 @@
+flowchart TD
+    %% Startup and configuration
+    UserSetup["Operator"] --> SetupCLI["make setup / bin/setup"]
+    SetupCLI --> Wizard["TUI wizard\ncollects admin + URLs + ports"]
+    Wizard --> Config["configs/waf.yaml\n+ env overrides"]
+    Wizard --> UsersDB[(SQLite\nusers)]
+    Wizard --> DatasetInit["logs/dataset.csv\ninitialize if missing"]
+
+    UserStart["Operator"] --> StartCLI["make run / bin/smart-waf start"]
+    StartCLI --> Main["cmd/waf/main.go\nloads config, opens DB, starts two servers"]
+    Main --> ProxySrv["Proxy server :8080"]
+    Main --> DashSrv["Dashboard server :9090"]
+    Main --> AuditJSONL["logs/audit.jsonl"]
+    Main --> AuditDB[(SQLite\naudit_logs)]
+
+    %% Runtime request path
+    Client["Client / Browser / curl"] -->|HTTP request| WAF["Smart WAF Proxy :8080"]
+    WAF --> Parser["Request parser\nBuild 14-field WAFRequest JSON"]
+    Parser --> StaticCheck{Static asset?\n.css .js .png etc.}
+    StaticCheck -->|Yes| Backend["DVWA / backend app"]
+
+    StaticCheck -->|No| AIHealth["AI health check\nGET /health"]
+    AIHealth -->|Unhealthy / timeout| FailOpen["Fail-open\nlog event, allow request"]
+    FailOpen --> AuditJSONL
+    FailOpen --> AuditDB
+    FailOpen --> Backend
+
+    AIHealth -->|200 OK| AIDetect["AI detect call\nPOST /detect\nBody: WAFRequest JSON"]
+    AIDetect --> AIEngine["External AI engine\nBERT classifier"]
+    AIEngine -->|AIResponse JSON\nrequest_id, attack_vector, confidence_score| Decision{Confidence >= threshold?\nDefault 85%}
+
+    Decision -->|High confidence + normal/safe| Backend
+    Decision -->|High confidence + attack| Block["403 JSON block response"]
+    Decision -->|Low confidence| PendingDB[(SQLite\npending_requests)]
+    PendingDB --> Backend
+
+    Backend -->|HTTP response| WAF
+    WAF --> Client
+    Block --> Client
+
+    %% Dashboard and admin workflow
+    AdminUser["Admin browser"] --> DashboardRoot["Dashboard :9090"]
+    DashboardRoot --> RootRedirect["GET / -> /login"]
+    DashboardRoot --> LoginPage["GET /login"]
+    DashboardRoot --> LoginPost["POST /login\nverify username/password"]
+    LoginPost --> UsersDB
+    LoginPost --> SessionCookie["Set smart_waf_session cookie"]
+
+    DashboardRoot --> ProtectedPages["Session-protected pages"]
+    ProtectedPages --> DashPage["GET /dashboard"]
+    ProtectedPages --> RequestsPage["GET /requests\nDashboard Requests tab"]
+    ProtectedPages --> StaticAssets["GET /static/*\nCSS / JS / images"]
+
+    RequestsPage --> CountAPI["GET /api/admin/requests/count"]
+    RequestsPage --> ListAPI["GET /api/admin/requests"]
+    RequestsPage --> DetailAPI["GET /api/admin/requests/:id"]
+
+    CountAPI --> PendingDB
+    ListAPI --> PendingDB
+    DetailAPI --> PendingDB
+
+    DetailAPI --> ReviewPopup["Review popup\nSafe / Unsafe"]
+    ReviewPopup -->|Safe| SafeAPI["POST /api/admin/requests/:id/safe"]
+    ReviewPopup -->|Unsafe + selected vector| UnsafeAPI["POST /api/admin/requests/:id/unsafe"]
+    ReviewPopup -->|Add new vector| VectorAPI["GET/POST /api/admin/vectors"]
+
+    VectorAPI --> VectorDB[(SQLite\nattack_vectors)]
+
+    SafeAPI --> SaveSafe["ToBERTString + SaveLabeledData\nlabel=safe code=0"]
+    UnsafeAPI --> ValidateVector["Validate vector/code"]
+    ValidateVector --> SaveUnsafe["ToBERTString + SaveLabeledData\nlabel=attack_vector code=N"]
+
+    SaveSafe --> LabeledDB[(SQLite\nlabeled_data)]
+    SaveUnsafe --> LabeledDB
+    SaveSafe --> DatasetCSV["logs/dataset.csv"]
+    SaveUnsafe --> DatasetCSV
+
+    SafeAPI --> DeletePending["Delete from pending_requests"]
+    UnsafeAPI --> DeletePending
+    DeletePending --> PendingDB
+
+    %% AI contract
+    subgraph AIContract["AI contract"]
+        HealthContract["GET AI_URL/health\nExpected: 200 OK"]
+        DetectContract["POST AI_URL/detect\nInput: WAFRequest JSON\nOutput: AIResponse JSON"]
+    end
+
+    AIHealth -.uses.-> HealthContract
+    AIDetect -.uses.-> DetectContract
