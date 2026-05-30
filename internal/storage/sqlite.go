@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"smart-waf/pkg/models"
@@ -149,42 +150,61 @@ func (r *SQLiteRepository) SavePendingRequest(req *models.WAFRequest, aiResp *mo
 	return err
 }
 
-func (r *SQLiteRepository) GetPendingRequests() ([]*models.WAFRequest, error) {
-	rows, err := r.db.Query(`SELECT waf_request_json FROM pending_requests ORDER BY created_at DESC`)
+func decodePendingRequest(rawReq, rawAI string, createdAt time.Time) (*PendingRequestDetails, error) {
+	var req models.WAFRequest
+	if err := json.Unmarshal([]byte(rawReq), &req); err != nil {
+		return nil, err
+	}
+	details := &PendingRequestDetails{Request: &req, CreatedAt: createdAt}
+	trimmedAI := strings.TrimSpace(rawAI)
+	if trimmedAI != "" && trimmedAI != "null" {
+		var aiResp models.AIResponse
+		if err := json.Unmarshal([]byte(trimmedAI), &aiResp); err != nil {
+			return nil, err
+		}
+		details.AIResponse = &aiResp
+		details.HasAIResult = true
+		details.WasFailOpen = false
+	} else {
+		details.WasFailOpen = true
+	}
+	return details, nil
+}
+
+func (r *SQLiteRepository) GetPendingRequests() ([]*PendingRequestDetails, error) {
+	rows, err := r.db.Query(`SELECT waf_request_json, COALESCE(ai_response_json, ''), created_at FROM pending_requests ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var requests []*models.WAFRequest
+	var requests []*PendingRequestDetails
 	for rows.Next() {
-		var raw string
-		if err := rows.Scan(&raw); err != nil {
+		var rawReq, rawAI string
+		var createdAt time.Time
+		if err := rows.Scan(&rawReq, &rawAI, &createdAt); err != nil {
 			return nil, err
 		}
-		var req models.WAFRequest
-		if err := json.Unmarshal([]byte(raw), &req); err != nil {
+		details, err := decodePendingRequest(rawReq, rawAI, createdAt)
+		if err != nil {
 			return nil, err
 		}
-		requests = append(requests, &req)
+		requests = append(requests, details)
 	}
 	return requests, rows.Err()
 }
 
-func (r *SQLiteRepository) GetPendingRequestByID(id string) (*models.WAFRequest, error) {
-	var raw string
-	err := r.db.QueryRow(`SELECT waf_request_json FROM pending_requests WHERE request_id = ?`, id).Scan(&raw)
+func (r *SQLiteRepository) GetPendingRequestByID(id string) (*PendingRequestDetails, error) {
+	var rawReq, rawAI string
+	var createdAt time.Time
+	err := r.db.QueryRow(`SELECT waf_request_json, COALESCE(ai_response_json, ''), created_at FROM pending_requests WHERE request_id = ?`, id).Scan(&rawReq, &rawAI, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errors.New("pending request not found")
 	}
 	if err != nil {
 		return nil, err
 	}
-	var req models.WAFRequest
-	if err := json.Unmarshal([]byte(raw), &req); err != nil {
-		return nil, err
-	}
-	return &req, nil
+	return decodePendingRequest(rawReq, rawAI, createdAt)
 }
 
 func (r *SQLiteRepository) CountPendingRequests() (int, error) {
@@ -239,6 +259,65 @@ func (r *SQLiteRepository) GetAttackVectors() (map[string]int, error) {
 		vectors[name] = code
 	}
 	return vectors, rows.Err()
+}
+
+func (r *SQLiteRepository) SaveBlockedEvent(req *models.WAFRequest, aiResp *models.AIResponse) error {
+	wafJSON, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+	aiJSON, err := json.Marshal(aiResp)
+	if err != nil {
+		return err
+	}
+	meta := map[string]string{
+		"waf_request_json": string(wafJSON),
+		"ai_response_json": string(aiJSON),
+	}
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Exec(`INSERT INTO audit_logs (event_type, request_id, metadata, created_at) VALUES (?, ?, ?, ?)`, "blocked", req.RequestID, string(metaJSON), time.Now().UTC())
+	return err
+}
+
+func (r *SQLiteRepository) GetBlockedEvents() ([]*BlockedEventDetails, error) {
+	rows, err := r.db.Query(`SELECT request_id, metadata, created_at FROM audit_logs WHERE event_type = 'blocked' ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []*BlockedEventDetails
+	for rows.Next() {
+		var requestID string
+		var rawMeta string
+		var createdAt time.Time
+		if err := rows.Scan(&requestID, &rawMeta, &createdAt); err != nil {
+			return nil, err
+		}
+		var meta map[string]string
+		if err := json.Unmarshal([]byte(rawMeta), &meta); err != nil {
+			return nil, err
+		}
+		var be BlockedEventDetails
+		if wafRaw, ok := meta["waf_request_json"]; ok && strings.TrimSpace(wafRaw) != "" {
+			var req models.WAFRequest
+			if err := json.Unmarshal([]byte(wafRaw), &req); err == nil {
+				be.Request = &req
+			}
+		}
+		if aiRaw, ok := meta["ai_response_json"]; ok && strings.TrimSpace(aiRaw) != "" && aiRaw != "null" {
+			var aiResp models.AIResponse
+			if err := json.Unmarshal([]byte(aiRaw), &aiResp); err == nil {
+				be.AIResponse = &aiResp
+			}
+		}
+		be.CreatedAt = createdAt
+		events = append(events, &be)
+	}
+	return events, rows.Err()
 }
 
 func appendDatasetCSV(path, requestString, attackVector string, code int, createdAt time.Time) error {

@@ -3,11 +3,31 @@ package admin
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"smart-waf/internal/storage"
 )
+
+type requestSummary struct {
+	RequestID       string             `json:"request_id"`
+	Timestamp       int64              `json:"timestamp"`
+	Path            string             `json:"path"`
+	Method          string             `json:"method"`
+	AIResponse      *summaryAIResponse `json:"ai_response,omitempty"`
+	DecisionState   string             `json:"decision_state"`
+	DecisionSummary string             `json:"decision_summary"`
+	ConfidenceLabel string             `json:"confidence_label"`
+	WasFailOpen     bool               `json:"was_fail_open"`
+	BlockedByAI     bool               `json:"blocked_by_ai,omitempty"`
+}
+
+type summaryAIResponse struct {
+	RequestID       string  `json:"request_id"`
+	AttackVector    string  `json:"attack_vector"`
+	ConfidenceScore float64 `json:"confidence_score"`
+}
 
 type Handler struct {
 	repo storage.Repository
@@ -28,25 +48,59 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, nil, err)
 		return
 	}
-	type item struct {
-		RequestID string `json:"request_id"`
-	}
-	out := make([]item, 0, len(requests))
-	for _, req := range requests {
-		out = append(out, item{RequestID: req.RequestID})
+	out := make([]requestSummary, 0, len(requests))
+	for _, item := range requests {
+		out = append(out, summarizePendingRequest(item))
 	}
 	writeJSON(w, out, nil)
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request, id string) {
 	req, err := h.repo.GetPendingRequestByID(id)
-	writeJSON(w, req, err)
+	if err == nil {
+		writeJSON(w, summarizePendingRequest(req), nil)
+		return
+	}
+	// fallback: search blocked events for this id
+	events, beErr := h.repo.GetBlockedEvents()
+	if beErr != nil {
+		writeJSON(w, nil, err)
+		return
+	}
+	for _, ev := range events {
+		if ev.Request != nil && ev.Request.RequestID == id {
+			// convert to same shape as pending summary
+			s := requestSummary{
+				RequestID:       ev.Request.RequestID,
+				Timestamp:       ev.Request.Timestamp,
+				Path:            ev.Request.Path,
+				Method:          ev.Request.Method,
+				WasFailOpen:     false,
+				DecisionState:   "blocked_by_ai",
+				DecisionSummary: "Blocked by AI",
+				ConfidenceLabel: "",
+				BlockedByAI:     true,
+			}
+			if ev.AIResponse != nil {
+				s.AIResponse = &summaryAIResponse{
+					RequestID:       ev.AIResponse.RequestID,
+					AttackVector:    ev.AIResponse.AttackVector,
+					ConfidenceScore: ev.AIResponse.ConfidenceScore,
+				}
+				s.DecisionSummary = ev.AIResponse.AttackVector
+				s.ConfidenceLabel = formatConfidence(ev.AIResponse.ConfidenceScore)
+			}
+			writeJSON(w, s, nil)
+			return
+		}
+	}
+	writeJSON(w, nil, err)
 }
 
 func (h *Handler) Safe(w http.ResponseWriter, r *http.Request, id string) {
 	req, err := h.repo.GetPendingRequestByID(id)
 	if err == nil {
-		err = h.repo.SaveLabeledData(ToBERTString(req), "safe", 0)
+		err = h.repo.SaveLabeledData(ToBERTString(req.Request), "safe", 0)
 	}
 	if err == nil {
 		err = h.repo.DeletePendingRequest(id)
@@ -74,7 +128,7 @@ func (h *Handler) Unsafe(w http.ResponseWriter, r *http.Request, id string) {
 	}
 	req, err := h.repo.GetPendingRequestByID(id)
 	if err == nil {
-		err = h.repo.SaveLabeledData(ToBERTString(req), body.VectorName, body.Code)
+		err = h.repo.SaveLabeledData(ToBERTString(req.Request), body.VectorName, body.Code)
 	}
 	if err == nil {
 		err = h.repo.DeletePendingRequest(id)
@@ -124,7 +178,7 @@ func (h *Handler) BulkSafe(w http.ResponseWriter, r *http.Request) {
 			errs = append(errs, id+": "+err.Error())
 			continue
 		}
-		if err := h.repo.SaveLabeledData(ToBERTString(req), "safe", 0); err != nil {
+		if err := h.repo.SaveLabeledData(ToBERTString(req.Request), "safe", 0); err != nil {
 			errs = append(errs, id+": "+err.Error())
 			continue
 		}
@@ -168,7 +222,7 @@ func (h *Handler) BulkUnsafe(w http.ResponseWriter, r *http.Request) {
 			errs = append(errs, it.ID+": "+err.Error())
 			continue
 		}
-		if err := h.repo.SaveLabeledData(ToBERTString(req), it.VectorName, it.Code); err != nil {
+		if err := h.repo.SaveLabeledData(ToBERTString(req.Request), it.VectorName, it.Code); err != nil {
 			errs = append(errs, it.ID+": "+err.Error())
 			continue
 		}
@@ -182,6 +236,38 @@ func (h *Handler) BulkUnsafe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"}, nil)
+}
+
+func summarizePendingRequest(item *storage.PendingRequestDetails) requestSummary {
+	summary := requestSummary{
+		RequestID:       item.Request.RequestID,
+		Timestamp:       item.Request.Timestamp,
+		Path:            item.Request.Path,
+		Method:          item.Request.Method,
+		WasFailOpen:     item.WasFailOpen,
+		DecisionState:   "pending_review",
+		DecisionSummary: "Pending human review",
+		ConfidenceLabel: "",
+	}
+	if item.WasFailOpen {
+		summary.DecisionState = "fail_open"
+		summary.DecisionSummary = "AI unavailable; request was allowed through and queued for review"
+	}
+	if item.AIResponse != nil {
+		summary.AIResponse = &summaryAIResponse{
+			RequestID:       item.AIResponse.RequestID,
+			AttackVector:    item.AIResponse.AttackVector,
+			ConfidenceScore: item.AIResponse.ConfidenceScore,
+		}
+		summary.DecisionState = "ai_review"
+		summary.DecisionSummary = item.AIResponse.AttackVector
+		summary.ConfidenceLabel = formatConfidence(item.AIResponse.ConfidenceScore)
+	}
+	return summary
+}
+
+func formatConfidence(score float64) string {
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", score), "0"), ".") + "%"
 }
 
 func (h *Handler) BulkDelete(w http.ResponseWriter, r *http.Request) {
@@ -203,6 +289,45 @@ func (h *Handler) BulkDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"}, nil)
+}
+
+func (h *Handler) BlockedList(w http.ResponseWriter, r *http.Request) {
+	events, err := h.repo.GetBlockedEvents()
+	if err != nil {
+		writeJSON(w, nil, err)
+		return
+	}
+	out := make([]requestSummary, 0, len(events))
+	for _, ev := range events {
+		s := requestSummary{
+			RequestID:       "",
+			Timestamp:       ev.CreatedAt.Unix(),
+			Path:            "",
+			Method:          "",
+			WasFailOpen:     false,
+			DecisionState:   "blocked_by_ai",
+			DecisionSummary: "Blocked by AI",
+			ConfidenceLabel: "",
+			BlockedByAI:     true,
+		}
+		if ev.Request != nil {
+			s.RequestID = ev.Request.RequestID
+			s.Path = ev.Request.Path
+			s.Method = ev.Request.Method
+			s.Timestamp = ev.Request.Timestamp
+		}
+		if ev.AIResponse != nil {
+			s.AIResponse = &summaryAIResponse{
+				RequestID:       ev.AIResponse.RequestID,
+				AttackVector:    ev.AIResponse.AttackVector,
+				ConfidenceScore: ev.AIResponse.ConfidenceScore,
+			}
+			s.DecisionSummary = ev.AIResponse.AttackVector
+			s.ConfidenceLabel = formatConfidence(ev.AIResponse.ConfidenceScore)
+		}
+		out = append(out, s)
+	}
+	writeJSON(w, out, nil)
 }
 
 func writeJSON(w http.ResponseWriter, value any, err error) {

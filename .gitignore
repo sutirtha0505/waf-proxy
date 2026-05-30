@@ -6,3 +6,4 @@ logs/
 *.sqlite3
 .DS_Store
 coverage.out
+response.txt

@@ -3,9 +3,36 @@ let lastCount = -1;
 async function refreshRequestList() {
   const list = document.getElementById("request-list");
   if (!list) return;
+  // fetch blocked events first
+  const blockedRes = await fetch('/api/admin/blocked');
+  const blocked = blockedRes.ok ? await blockedRes.json() : [];
   const res = await fetch("/api/admin/requests");
   const rows = await res.json();
   list.innerHTML = "";
+
+  // render blocked items first
+  blocked.forEach((row) => {
+    const li = document.createElement('li');
+    li.style.color = 'crimson';
+    const badge = document.createElement('strong');
+    badge.textContent = 'AI-blocked';
+    badge.style.marginRight = '0.5rem';
+    const label = document.createElement('span');
+    label.textContent = row.request_id || row.request_id;
+    label.style.cursor = 'pointer';
+    label.addEventListener('click', () => window.openReview(row.request_id));
+    const meta = document.createElement('small');
+    const summary = row.decision_summary || 'Blocked by AI';
+    const confidence = row.confidence_label ? ` (${row.confidence_label})` : '';
+    meta.textContent = ` ${summary}${confidence}`;
+    meta.style.marginLeft = '0.5rem';
+    meta.style.opacity = '0.8';
+    li.appendChild(badge);
+    li.appendChild(label);
+    li.appendChild(meta);
+    list.appendChild(li);
+  });
+
   rows.forEach((row) => {
     const li = document.createElement("li");
     const cb = document.createElement("input");
@@ -16,6 +43,12 @@ async function refreshRequestList() {
     label.textContent = row.request_id;
     label.style.cursor = "pointer";
     label.addEventListener("click", () => window.openReview(row.request_id));
+    const meta = document.createElement("small");
+    const summary = row.decision_summary || 'Pending human review';
+    const confidence = row.confidence_label ? ` (${row.confidence_label})` : '';
+    meta.textContent = ` ${summary}${confidence}`;
+    meta.style.marginLeft = '0.5rem';
+    meta.style.opacity = '0.8';
     cb.addEventListener('change', () => {
       const selectAll = document.getElementById('select-all-cb');
       if (!selectAll) return;
@@ -24,6 +57,7 @@ async function refreshRequestList() {
     });
     // preserve select-all state when refreshing
     const selectAll = document.getElementById('select-all-cb');
+    li.appendChild(meta);
     if (selectAll && selectAll.checked) cb.checked = true;
     li.appendChild(cb);
     li.appendChild(label);

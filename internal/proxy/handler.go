@@ -8,6 +8,7 @@ import (
 	"smart-waf/internal/ai"
 	"smart-waf/internal/config"
 	"smart-waf/internal/engine"
+	"smart-waf/internal/storage"
 	"smart-waf/pkg/models"
 )
 
@@ -19,9 +20,10 @@ type Handler struct {
 	decision       *engine.Decision
 	failOpen       *engine.FailOpen
 	logger         *log.Logger
+	repo           storage.Repository
 }
 
-func NewHandler(cfg config.Config, aiClient *ai.Client, decision *engine.Decision, failOpen *engine.FailOpen, logger *log.Logger) *Handler {
+func NewHandler(cfg config.Config, aiClient *ai.Client, decision *engine.Decision, failOpen *engine.FailOpen, logger *log.Logger, repo storage.Repository) *Handler {
 	return &Handler{
 		cfg:            cfg,
 		parser:         NewParser(1 << 20),
@@ -30,6 +32,7 @@ func NewHandler(cfg config.Config, aiClient *ai.Client, decision *engine.Decisio
 		decision:       decision,
 		failOpen:       failOpen,
 		logger:         logger,
+		repo:           repo,
 	}
 }
 
@@ -75,6 +78,10 @@ func (h *Handler) Intercept(w http.ResponseWriter, r *http.Request) bool {
 		decision := h.decision.Evaluate(wafReq, result.resp)
 		if decision.Allowed {
 			return true
+		}
+		// persist blocked event so operators can see what AI blocked
+		if h.repo != nil {
+			_ = h.repo.SaveBlockedEvent(wafReq, result.resp)
 		}
 		engine.WriteBlocked(w, decision.Reason)
 		return false

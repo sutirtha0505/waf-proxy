@@ -1,7 +1,0 @@
-threshold: 85.0
-actions:
-  default: block
-  normal: allow
-  safe: allow
-
-fail_open: true

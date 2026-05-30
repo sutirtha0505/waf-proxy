@@ -12,7 +12,7 @@ ai:
   max_retries: 2
 
 admin:
-  threshold: 85.0
+  threshold: 92.0
 
 dashboard:
   port: 9090

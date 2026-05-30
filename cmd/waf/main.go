@@ -39,7 +39,7 @@ func main() {
 	policy := engine.NewPolicy(cfg.Admin.Threshold)
 	decision := engine.NewDecision(policy, repo)
 	failOpen := engine.NewFailOpen(logger, audit, repo)
-	proxyHandler := proxy.NewHandler(cfg, aiClient, decision, failOpen, logger)
+	proxyHandler := proxy.NewHandler(cfg, aiClient, decision, failOpen, logger, repo)
 
 	proxyServer, err := proxy.NewServer(cfg, proxyHandler, logger)
 	if err != nil {

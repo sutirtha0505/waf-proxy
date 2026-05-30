@@ -1,10 +1,26 @@
 window.openReview = async function openReview(id) {
   const modal = document.getElementById("review-modal");
+  const summaryEl = document.getElementById("request-summary");
+  const decisionEl = document.getElementById("request-decision");
+  const confidenceEl = document.getElementById("request-confidence");
   const pre = document.getElementById("request-json");
   const vectorSelect = document.getElementById("vector-select");
   const req = await fetch(`/api/admin/requests/${id}`).then((r) => r.json());
   const vectors = await fetch("/api/admin/vectors").then((r) => r.json());
   pre.textContent = JSON.stringify(req, null, 2);
+  if (summaryEl) summaryEl.textContent = `Request ${req.request_id} - ${req.method} ${req.path}`;
+  if (decisionEl) {
+    if (req.was_fail_open) {
+      decisionEl.textContent = "Decision: fail-open (AI unavailable, request was queued for review)";
+    } else if (req.ai_response) {
+      decisionEl.textContent = `Decision: ${req.ai_response.attack_vector}`;
+    } else {
+      decisionEl.textContent = "Decision: pending human review";
+    }
+  }
+  if (confidenceEl) {
+    confidenceEl.textContent = req.confidence_label ? `Confidence: ${req.confidence_label}` : "Confidence: n/a";
+  }
   vectorSelect.innerHTML = "";
   Object.entries(vectors).forEach(([name, code]) => {
     const option = document.createElement("option");

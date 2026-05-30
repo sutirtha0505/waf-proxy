@@ -50,5 +50,6 @@ func Router(handler *Handler) http.Handler {
 		http.NotFound(w, r)
 	})
 	mux.HandleFunc("/api/admin/vectors", handler.Vectors)
+	mux.HandleFunc("/api/admin/blocked", handler.BlockedList)
 	return mux
 }
