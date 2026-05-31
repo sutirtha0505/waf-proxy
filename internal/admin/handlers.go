@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"smart-waf/internal/storage"
 )
@@ -43,16 +45,69 @@ func (h *Handler) Count(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	// parse optional query params for pagination/filtering
+	q := r.URL.Query().Get("q")
+	vector := r.URL.Query().Get("vector")
+	status := r.URL.Query().Get("status")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	limit := 100
+	offset := 0
+	if limitStr != "" {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+			limit = v
+		}
+	}
+	if offsetStr != "" {
+		if v, err := strconv.Atoi(offsetStr); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+
 	requests, err := h.repo.GetPendingRequests()
 	if err != nil {
 		writeJSON(w, nil, err)
 		return
 	}
-	out := make([]requestSummary, 0, len(requests))
+	// build summaries and apply filters
+	all := make([]requestSummary, 0, len(requests))
 	for _, item := range requests {
-		out = append(out, summarizePendingRequest(item))
+		s := summarizePendingRequest(item)
+		// filter by vector
+		if vector != "" {
+			if s.AIResponse == nil || !strings.EqualFold(s.AIResponse.AttackVector, vector) {
+				continue
+			}
+		}
+		// filter by status
+		if status != "" {
+			if !strings.EqualFold(s.DecisionState, status) {
+				continue
+			}
+		}
+		// fulltext q search across id/path/method
+		if q != "" {
+			qlow := strings.ToLower(q)
+			if !strings.Contains(strings.ToLower(s.RequestID), qlow) && !strings.Contains(strings.ToLower(s.Path), qlow) && !strings.Contains(strings.ToLower(s.Method), qlow) {
+				continue
+			}
+		}
+		all = append(all, s)
 	}
-	writeJSON(w, out, nil)
+	total := len(all)
+	// apply offset/limit
+	start := offset
+	if start > total {
+		start = total
+	}
+	end := start + limit
+	if end > total {
+		end = total
+	}
+	paged := all[start:end]
+	// include total count in header for client pagination
+	w.Header().Set("X-Total-Count", fmt.Sprintf("%d", total))
+	writeJSON(w, paged, nil)
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request, id string) {
@@ -328,6 +383,149 @@ func (h *Handler) BlockedList(w http.ResponseWriter, r *http.Request) {
 		out = append(out, s)
 	}
 	writeJSON(w, out, nil)
+}
+
+func (h *Handler) Stream(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	ctx := r.Context()
+	lastPending, _ := h.repo.CountPendingRequests()
+	blockedEvents, _ := h.repo.GetBlockedEvents()
+	lastBlocked := len(blockedEvents)
+	_, _ = w.Write([]byte(fmt.Sprintf("event: update\ndata: {\"pending_count\": %d, \"blocked_count\": %d, \"ts\": %d}\n\n", lastPending, lastBlocked, time.Now().Unix())))
+	flusher.Flush()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+			cur, _ := h.repo.CountPendingRequests()
+			events, _ := h.repo.GetBlockedEvents()
+			curBlocked := len(events)
+			if cur != lastPending || curBlocked != lastBlocked {
+				lastPending = cur
+				lastBlocked = curBlocked
+				// send simple event with new count
+				_, _ = w.Write([]byte(fmt.Sprintf("event: update\ndata: {\"pending_count\": %d, \"blocked_count\": %d, \"ts\": %d}\n\n", cur, curBlocked, time.Now().Unix())))
+				flusher.Flush()
+				continue
+			}
+			_, _ = w.Write([]byte(": ping\n\n"))
+			flusher.Flush()
+		}
+	}
+}
+
+func (h *Handler) Traffic(w http.ResponseWriter, r *http.Request) {
+	// optional from/to as unix seconds
+	fromStr := r.URL.Query().Get("from")
+	toStr := r.URL.Query().Get("to")
+	intervalStr := r.URL.Query().Get("interval")
+	var from, to time.Time
+	now := time.Now().UTC()
+	if fromStr == "" {
+		from = now.Add(-1 * time.Hour)
+	} else {
+		if t, err := strconv.ParseInt(fromStr, 10, 64); err == nil {
+			from = time.Unix(t, 0).UTC()
+		} else {
+			from = now.Add(-1 * time.Hour)
+		}
+	}
+	if toStr == "" {
+		to = now
+	} else {
+		if t, err := strconv.ParseInt(toStr, 10, 64); err == nil {
+			to = time.Unix(t, 0).UTC()
+		} else {
+			to = now
+		}
+	}
+	interval := 60
+	if intervalStr != "" {
+		if v, err := strconv.Atoi(intervalStr); err == nil && v > 0 {
+			interval = v
+		}
+	}
+	if interval < 10 {
+		interval = 10
+	}
+	if interval > 3600 {
+		interval = 3600
+	}
+	if to.Before(from) {
+		from, to = to, from
+	}
+
+	totalBuckets := int(to.Sub(from).Seconds())/interval + 1
+	if totalBuckets < 1 {
+		totalBuckets = 1
+	}
+
+	type trafficPoint struct {
+		TS      int64 `json:"ts"`
+		Pending int   `json:"pending"`
+		Blocked int   `json:"blocked"`
+	}
+	buckets := make([]trafficPoint, totalBuckets)
+	for i := 0; i < totalBuckets; i++ {
+		buckets[i].TS = from.Unix() + int64(i*interval)
+	}
+
+	bucketIndex := func(t time.Time) int {
+		delta := int(t.Sub(from).Seconds())
+		if delta < 0 {
+			return -1
+		}
+		idx := delta / interval
+		if idx >= totalBuckets {
+			return -1
+		}
+		return idx
+	}
+
+	// aggregate using blocked events and pending requests
+	blockedEvents, _ := h.repo.GetBlockedEvents()
+	pending, _ := h.repo.GetPendingRequests()
+	totalBlocked := 0
+	perVector := map[string]int{}
+	for _, ev := range blockedEvents {
+		if ev.CreatedAt.Before(from) || ev.CreatedAt.After(to) {
+			continue
+		}
+		totalBlocked++
+		if idx := bucketIndex(ev.CreatedAt); idx >= 0 {
+			buckets[idx].Blocked++
+		}
+		if ev.AIResponse != nil {
+			perVector[ev.AIResponse.AttackVector] = perVector[ev.AIResponse.AttackVector] + 1
+		}
+	}
+	totalPending := 0
+	for _, p := range pending {
+		if p.CreatedAt.Before(from) || p.CreatedAt.After(to) {
+			continue
+		}
+		totalPending++
+		if idx := bucketIndex(p.CreatedAt); idx >= 0 {
+			buckets[idx].Pending++
+		}
+	}
+	writeJSON(w, map[string]any{
+		"from":        from.Unix(),
+		"to":          to.Unix(),
+		"interval":    interval,
+		"blocked":     totalBlocked,
+		"pending":     totalPending,
+		"by_vector":   perVector,
+		"time_series": buckets,
+	}, nil)
 }
 
 func writeJSON(w http.ResponseWriter, value any, err error) {

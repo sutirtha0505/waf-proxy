@@ -11,3 +11,14 @@ ul { padding: 0; list-style: none; display: grid; gap: 8px; }
 li { padding: 12px; background: white; border: 1px solid #d8dde3; border-radius: 6px; cursor: pointer; }
 dialog { width: min(760px, calc(100vw - 24px)); border: 1px solid #c5ccd3; border-radius: 8px; }
 pre { max-height: 420px; overflow: auto; background: #101820; color: #eaf0f6; padding: 16px; border-radius: 6px; }
+
+.dashboard-card { background: white; border: 1px solid #d8dde3; border-radius: 8px; padding: 16px; margin-bottom: 18px; }
+.dashboard-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.traffic-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; margin-bottom: 14px; }
+.traffic-metrics div { background: #f6f9fc; border: 1px solid #dbe4ee; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.traffic-metrics strong { font-size: 1.3rem; color: #0d2538; }
+.traffic-metrics span { color: #5f6f82; font-size: 0.92rem; }
+#traffic-chart { width: 100%; max-width: 100%; height: auto; border: 1px solid #dbe4ee; border-radius: 8px; background: #ffffff; }
+
+.pagination { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }

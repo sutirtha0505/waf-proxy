@@ -51,5 +51,7 @@ func Router(handler *Handler) http.Handler {
 	})
 	mux.HandleFunc("/api/admin/vectors", handler.Vectors)
 	mux.HandleFunc("/api/admin/blocked", handler.BlockedList)
+	mux.HandleFunc("/api/admin/stream", handler.Stream)
+	mux.HandleFunc("/api/admin/traffic", handler.Traffic)
 	return mux
 }

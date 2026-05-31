@@ -9,11 +9,29 @@
 <body>
   <header><h1>Smart WAF</h1><nav><a href="/requests">Requests</a></nav></header>
   <main>
-    <section>
+    <section class="dashboard-card">
       <h2>Review Queue</h2>
       <p id="count">0 pending requests</p>
     </section>
+    <section class="dashboard-card">
+      <div class="dashboard-toolbar">
+        <h2>Traffic Overview</h2>
+        <select id="traffic-range">
+          <option value="900">Last 15m</option>
+          <option value="3600" selected>Last 1h</option>
+          <option value="21600">Last 6h</option>
+          <option value="86400">Last 24h</option>
+        </select>
+      </div>
+      <canvas id="traffic-chart" width="980" height="280"></canvas>
+      <div class="traffic-metrics">
+        <div><strong id="metric-blocked">0</strong><span>Blocked</span></div>
+        <div><strong id="metric-pending">0</strong><span>Pending Queue Events</span></div>
+      </div>
+      <h3>Blocked By Vector</h3>
+      <ul id="vector-breakdown"></ul>
+    </section>
   </main>
-  <script src="/static/js/requests.js"></script>
+  <script src="/static/js/dashboard.js"></script>
 </body>
 </html>
