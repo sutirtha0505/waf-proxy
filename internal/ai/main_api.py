@@ -10,14 +10,16 @@ from uuid import UUID
 
 app = FastAPI(title="Detect Demo API", version="1.0.0")
 
+MODEL_NAME = "sayantan8768768/smartwaf-distilbert-waf_v1"
+
 
 # Initialize the pipeline
-classifier = pipeline("text-classification", model="sayantan8768768/smartwaf-distilbert-waf_v1")
+classifier = pipeline("text-classification", model=MODEL_NAME)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "model_name": MODEL_NAME}
 
 def json_to_waf_string(json_input):
     """
