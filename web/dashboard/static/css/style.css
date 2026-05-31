@@ -28,6 +28,19 @@ body {
 	color: var(--ink);
 }
 
+h1,
+h2,
+h3,
+p,
+span,
+strong,
+a,
+button,
+label,
+li {
+	overflow-wrap: anywhere;
+}
+
 body::before {
 	content: "";
 	position: fixed;
@@ -160,6 +173,7 @@ dialog {
 .login-card {
 	border-radius: 22px;
 	padding: 20px;
+	min-width: 0;
 }
 
 .hero-copy {
@@ -319,6 +333,7 @@ dialog {
 	font-size: clamp(1.5rem, 3vw, 2.5rem);
 	line-height: 1;
 	margin-bottom: 6px;
+	word-break: break-word;
 }
 
 .metric-card span,
@@ -453,6 +468,7 @@ li.vector-row {
 	color: var(--muted);
 	font-weight: 600;
 	line-height: 1.45;
+	white-space: pre-wrap;
 }
 
 .request-metadata,
@@ -608,6 +624,7 @@ li.vector-row {
 	font-family: "Arial Black", Impact, Haettenschweiler, sans-serif;
 	font-size: 1.1rem;
 	text-transform: uppercase;
+	word-break: break-word;
 }
 
 .code-chip,
@@ -702,11 +719,15 @@ li.vector-row {
 	border-radius: 20px;
 	background: var(--panel);
 	box-shadow: 6px 6px 0 var(--line);
+	min-width: 0;
 }
 
 .retrain-card strong {
 	font-family: "Arial Black", Impact, Haettenschweiler, sans-serif;
 	font-size: clamp(1.4rem, 2.7vw, 2rem);
+	line-height: 1.2;
+	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 .retrain-card p {
@@ -714,6 +735,17 @@ li.vector-row {
 	color: var(--muted);
 	line-height: 1.5;
 	font-weight: 600;
+}
+
+#ai-health-status,
+#ai-model-name,
+#ai-last-checked-at,
+#ai-last-swapped-at,
+#ai-last-error,
+#redteam-log,
+#count {
+	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 dialog {
@@ -872,6 +904,14 @@ button:disabled {
 		justify-content: space-between;
 	}
 
+	nav {
+		width: 100%;
+	}
+
+	nav a {
+		flex: 1 1 140px;
+	}
+
 	.retrain-grid {
 		grid-template-columns: 1fr;
 	}
@@ -915,5 +955,10 @@ button:disabled {
 	nav a,
 	.auth-bar button {
 		width: 100%;
+	}
+
+	.auth-pill {
+		width: 100%;
+		justify-content: center;
 	}
 }

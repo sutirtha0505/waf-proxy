@@ -32,9 +32,9 @@ function getStatusClass(row) {
   return 'pending';
 }
 
-function renderRequestRow(row, { blocked = false } = {}) {
+function renderRequestRow(row) {
   const li = document.createElement('li');
-  li.className = `request-row ${blocked ? 'is-blocked' : ''} ${row?.was_fail_open ? 'is-fail-open' : ''} ${row?.decision_state === 'pending_review' ? 'is-pending' : ''}`.trim();
+  li.className = `request-row ${row?.was_fail_open ? 'is-fail-open' : ''} ${row?.decision_state === 'pending_review' ? 'is-pending' : ''}`.trim();
 
   const top = document.createElement('div');
   top.className = 'request-top';
@@ -58,7 +58,7 @@ function renderRequestRow(row, { blocked = false } = {}) {
 
   const body = document.createElement('div');
   body.className = 'request-body';
-  const decision = row.decision_summary || 'Pending human review';
+  const decision = row.decision_summary || 'Decision unavailable';
   const confidence = row.confidence_label ? `Confidence ${row.confidence_label}` : 'Confidence n/a';
   const timestamp = formatTimestamp(row.timestamp);
   body.textContent = `${decision} • ${confidence} • ${timestamp}`;
@@ -110,6 +110,11 @@ function renderRequestRow(row, { blocked = false } = {}) {
   return li;
 }
 
+function clearSelectionState() {
+  const selectAll = document.getElementById('select-all-cb');
+  if (selectAll) selectAll.checked = false;
+}
+
 async function refreshRequestList() {
   if (refreshInFlight) {
     needsRefresh = true;
@@ -124,11 +129,10 @@ async function refreshRequestList() {
   }
 
   try {
-    const [blockedRes, res] = await Promise.all([
-      fetch('/api/admin/blocked'),
-      fetch(`/api/admin/requests?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`),
-    ]);
-    const blocked = blockedRes.ok ? await blockedRes.json() : [];
+    const res = await fetch(`/api/admin/requests?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
+    if (!res.ok) {
+      throw new Error(res.statusText || `HTTP ${res.status}`);
+    }
     const rows = res.ok ? await res.json() : [];
 
     totalPending = parseInt(res.headers.get('x-total-count') || '0', 10);
@@ -144,21 +148,18 @@ async function refreshRequestList() {
     }
 
     list.innerHTML = "";
-
-    // Render the latest blocked items first as a live context banner list.
-    blocked.slice(0, 10).forEach((row) => {
-      list.appendChild(renderRequestRow(row, { blocked: true }));
-    });
+    clearSelectionState();
 
     rows.forEach((row) => {
-      const rowEl = renderRequestRow(row);
-      const selectAll = document.getElementById('select-all-cb');
-      if (selectAll && selectAll.checked) {
-        const checkbox = rowEl.querySelector('.request-checkbox');
-        if (checkbox) checkbox.checked = true;
-      }
-      list.appendChild(rowEl);
+      list.appendChild(renderRequestRow(row));
     });
+
+    if (rows.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'empty-state';
+      empty.textContent = 'No pending requests.';
+      list.appendChild(empty);
+    }
 
     const pageInfo = document.getElementById('page-info');
     if (pageInfo) {
@@ -172,7 +173,7 @@ async function refreshRequestList() {
     const label = document.getElementById("count");
     if (label) label.textContent = `${totalPending} pending requests`;
     const queueMetric = document.getElementById('metric-queue');
-    if (queueMetric) queueMetric.textContent = String(totalPending + blocked.length);
+    if (queueMetric) queueMetric.textContent = String(totalPending);
     lastCount = totalPending;
   } catch (err) {
     setBulkStatus(`Refresh error: ${err.message || String(err)}`);
@@ -186,7 +187,24 @@ async function refreshRequestList() {
 }
 
 function getSelectedIds() {
-  return Array.from(document.querySelectorAll('.request-checkbox:checked')).map((el) => el.dataset.id);
+  return Array.from(document.querySelectorAll('.request-checkbox:checked'))
+    .map((el) => el.dataset.id)
+    .filter(Boolean);
+}
+
+async function readActionResponse(res) {
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok || payload.status === 'partial') {
+    const details = Array.isArray(payload.errors) ? payload.errors.join('; ') : (payload.error || res.statusText);
+    throw new Error(details || 'Request failed');
+  }
+  return payload;
+}
+
+async function refreshAfterMutation(message) {
+  setBulkStatus(message);
+  clearSelectionState();
+  await refreshRequestList();
 }
 
 async function bulkSafe() {
@@ -198,12 +216,11 @@ async function bulkSafe() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids })
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    setBulkStatus('Error: ' + (err.error || res.statusText));
-  } else {
-    setBulkStatus('Done');
-    refreshRequestList();
+  try {
+    await readActionResponse(res);
+    await refreshAfterMutation('Done');
+  } catch (err) {
+    setBulkStatus('Error: ' + (err.message || String(err)));
   }
 }
 
@@ -217,12 +234,11 @@ async function bulkDelete() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids })
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    setBulkStatus('Error: ' + (err.error || res.statusText));
-  } else {
-    setBulkStatus('Deleted');
-    refreshRequestList();
+  try {
+    await readActionResponse(res);
+    await refreshAfterMutation('Deleted');
+  } catch (err) {
+    setBulkStatus('Error: ' + (err.message || String(err)));
   }
 }
 
@@ -244,12 +260,11 @@ async function bulkUnsafe() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items })
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    setBulkStatus('Error: ' + (err.error || res.statusText));
-  } else {
-    setBulkStatus('Done');
-    refreshRequestList();
+  try {
+    await readActionResponse(res);
+    await refreshAfterMutation('Done');
+  } catch (err) {
+    setBulkStatus('Error: ' + (err.message || String(err)));
   }
 }
 

