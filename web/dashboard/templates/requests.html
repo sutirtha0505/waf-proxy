@@ -7,31 +7,88 @@
   <title>Pending Requests</title>
 </head>
 <body>
-  <header><h1>Pending Requests</h1><nav><a href="/dashboard">Dashboard</a></nav></header>
-  <main>
-    <div class="bulk-actions">
-      <label><input type="checkbox" id="select-all-cb"> Select All</label>
-      <button id="bulk-safe-btn">Mark Selected Safe</button>
-      <button id="bulk-unsafe-btn">Mark Selected Unsafe</button>
-      <button id="bulk-delete-btn">Delete Selected</button>
-      <span id="bulk-status"></span>
-    </div>
-    <ul id="request-list"></ul>
-    <div class="pagination">
-      <button id="prev-page">Prev</button>
-      <span id="page-info">Page 1</span>
-      <button id="next-page">Next</button>
-    </div>
+  <header>
+    <h1>Pending Requests</h1>
+    <nav>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/requests">Requests</a>
+    </nav>
+    <form class="auth-bar" method="post" action="/logout">
+      <span class="auth-pill">Signed in as {{if .Username}}{{.Username}}{{else}}operator{{end}}</span>
+      <button type="submit" class="ghost-button">Logout</button>
+    </form>
+  </header>
+  <main class="dashboard-shell">
+    <section class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">Review queue</span>
+        <h2>Attack sessions waiting for a decision.</h2>
+        <p>
+          Each card now shows the request route, confidence, timestamp, and decision state so the queue reads like a
+          live incident board instead of a plain list.
+        </p>
+      </div>
+      <aside class="hero-panel">
+        <span class="eyebrow">Bulk actions</span>
+        <strong id="count">0 pending requests</strong>
+        <p>Use the controls below to classify, keep, or delete selected requests.</p>
+      </aside>
+    </section>
+
+    <section class="request-panel">
+      <div class="request-head">
+        <div>
+          <span class="section-label">Queue controls</span>
+          <h2>Manage selected sessions</h2>
+        </div>
+      </div>
+      <div class="bulk-actions">
+        <label><input type="checkbox" id="select-all-cb"> Select all</label>
+        <button id="bulk-safe-btn" class="success">Mark selected safe</button>
+        <button id="bulk-unsafe-btn" class="warning">Mark selected unsafe</button>
+        <button id="bulk-delete-btn" class="danger">Delete selected</button>
+        <span id="bulk-status" class="bulk-status"></span>
+      </div>
+      <ul id="request-list" class="request-list"></ul>
+      <div class="pagination">
+        <button id="prev-page">Prev</button>
+        <span id="page-info" class="page-count">Page 1</span>
+        <button id="next-page">Next</button>
+      </div>
+    </section>
+
     <dialog id="review-modal">
-      <div id="request-summary"></div>
-      <div id="request-decision"></div>
-      <div id="request-confidence"></div>
-      <pre id="request-json"></pre>
-      <select id="vector-select"></select>
-      <button id="safe-btn">Safe</button>
-      <button id="unsafe-btn">Unsafe</button>
-      <button id="add-vector-btn">Add New Attack Vector</button>
-      <button onclick="document.getElementById('review-modal').close()">Close</button>
+      <div class="modal-card">
+        <div class="modal-top">
+          <div>
+            <span class="section-label">Review detail</span>
+            <h3 id="request-summary" class="modal-title"></h3>
+            <div id="request-decision" class="modal-subtitle"></div>
+            <div id="request-confidence" class="modal-meta"></div>
+          </div>
+          <button type="button" class="ghost-button" onclick="document.getElementById('review-modal').close()">Close</button>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <h4>Decision</h4>
+            <div id="request-decision-copy" class="modal-meta"></div>
+          </div>
+          <div class="detail-card">
+            <h4>Confidence</h4>
+            <div id="request-confidence-copy" class="modal-meta"></div>
+          </div>
+        </div>
+        <pre id="request-json"></pre>
+        <div class="modal-footer">
+          <label class="modal-meta" for="vector-select">Choose attack vector</label>
+          <select id="vector-select" class="review-select"></select>
+          <div class="request-actions">
+            <button id="safe-btn" class="success">Safe</button>
+            <button id="unsafe-btn" class="danger">Unsafe</button>
+            <button id="add-vector-btn">Add new attack vector</button>
+          </div>
+        </div>
+      </div>
     </dialog>
   </main>
   <script src="/static/js/requests.js"></script>

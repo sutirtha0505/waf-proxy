@@ -13,6 +13,13 @@ function formatShortTime(unixSeconds) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatRangeLabel(rangeSeconds) {
+  if (rangeSeconds <= 900) return '15m';
+  if (rangeSeconds <= 3600) return '1h';
+  if (rangeSeconds <= 21600) return '6h';
+  return '24h';
+}
+
 function drawTrafficChart(points) {
   const canvas = document.getElementById('traffic-chart');
   if (!canvas) return;
@@ -123,10 +130,18 @@ async function refreshTrafficChart() {
 
   const payload = await response.json();
   drawTrafficChart(payload.time_series || []);
+  const rangeLabel = document.getElementById('metric-window');
+  if (rangeLabel) rangeLabel.textContent = formatRangeLabel(trafficRangeSeconds);
   const blockedMetric = document.getElementById('metric-blocked');
   const pendingMetric = document.getElementById('metric-pending');
+  const blockedChartMetric = document.getElementById('metric-blocked-chart');
+  const pendingChartMetric = document.getElementById('metric-pending-chart');
+  const queueMetric = document.getElementById('metric-queue');
   if (blockedMetric) blockedMetric.textContent = String(payload.blocked || 0);
   if (pendingMetric) pendingMetric.textContent = String(payload.pending || 0);
+  if (blockedChartMetric) blockedChartMetric.textContent = String(payload.blocked || 0);
+  if (pendingChartMetric) pendingChartMetric.textContent = String(payload.pending || 0);
+  if (queueMetric) queueMetric.textContent = String((payload.blocked || 0) + (payload.pending || 0));
   const count = document.getElementById('count');
   if (count) count.textContent = `${payload.pending || 0} pending requests`;
   renderVectorBreakdown(payload.by_vector || {});
@@ -170,6 +185,8 @@ function initDashboard() {
   if (rangeSelect) {
     rangeSelect.addEventListener('change', (event) => {
       trafficRangeSeconds = parseInt(event.target.value, 10) || 3600;
+      const rangeLabel = document.getElementById('metric-window');
+      if (rangeLabel) rangeLabel.textContent = formatRangeLabel(trafficRangeSeconds);
       scheduleTrafficRefresh(0);
     });
   }
@@ -180,6 +197,8 @@ function initDashboard() {
   });
   connectTrafficStream();
 }
+
+window.refreshTrafficChart = refreshTrafficChart;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initDashboard);

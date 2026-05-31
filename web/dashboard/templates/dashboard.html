@@ -7,31 +7,153 @@
   <title>Smart WAF Dashboard</title>
 </head>
 <body>
-  <header><h1>Smart WAF</h1><nav><a href="/requests">Requests</a></nav></header>
-  <main>
-    <section class="dashboard-card">
-      <h2>Review Queue</h2>
-      <p id="count">0 pending requests</p>
+  <header>
+    <h1>Smart WAF</h1>
+    <nav>
+      <a href="/dashboard">Overview</a>
+      <a href="/requests">Requests</a>
+      <a href="#retrain">Retrain AI</a>
+    </nav>
+    <form class="auth-bar" method="post" action="/logout">
+      <span class="auth-pill">Signed in as {{if .Username}}{{.Username}}{{else}}operator{{end}}</span>
+      <button type="submit" class="ghost-button">Logout</button>
+    </form>
+  </header>
+  <main class="dashboard-shell">
+    <section class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">Neobrutalist command center</span>
+        <h2>Watch attacks, review sessions, and move fast.</h2>
+        <p>
+          The dashboard surfaces queue pressure, blocked traffic, attack-vector breakdowns, and review workload in
+          one loud, high-contrast workspace so defenders can scan state quickly.
+        </p>
+      </div>
+      <aside class="hero-panel">
+        <span class="eyebrow">Live status</span>
+        <strong id="count">0 pending requests</strong>
+        <p>Review queue depth updates in real time from the live stream endpoint.</p>
+      </aside>
     </section>
-    <section class="dashboard-card">
-      <div class="dashboard-toolbar">
-        <h2>Traffic Overview</h2>
-        <select id="traffic-range">
-          <option value="900">Last 15m</option>
-          <option value="3600" selected>Last 1h</option>
-          <option value="21600">Last 6h</option>
-          <option value="86400">Last 24h</option>
-        </select>
-      </div>
-      <canvas id="traffic-chart" width="980" height="280"></canvas>
-      <div class="traffic-metrics">
-        <div><strong id="metric-blocked">0</strong><span>Blocked</span></div>
-        <div><strong id="metric-pending">0</strong><span>Pending Queue Events</span></div>
-      </div>
-      <h3>Blocked By Vector</h3>
-      <ul id="vector-breakdown"></ul>
+
+    <section class="dashboard-grid">
+      <article class="dashboard-card">
+        <div class="section-head">
+          <div>
+            <span class="section-label">Operational snapshot</span>
+            <h2>Attack and session status</h2>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="metric-card">
+            <strong id="metric-blocked">0</strong>
+            <span>Blocked attacks</span>
+          </div>
+          <div class="metric-card">
+            <strong id="metric-pending">0</strong>
+            <span>Pending review sessions</span>
+          </div>
+          <div class="metric-card">
+            <strong id="metric-queue">0</strong>
+            <span>Queue pressure</span>
+          </div>
+          <div class="metric-card">
+            <strong id="metric-window">1h</strong>
+            <span>Current traffic window</span>
+          </div>
+        </div>
+      </article>
+
+      <section class="traffic-section">
+        <div class="dashboard-toolbar">
+          <div>
+            <span class="section-label">Traffic timeline</span>
+            <h2>Blocked versus pending events</h2>
+          </div>
+          <select id="traffic-range" aria-label="Traffic range">
+            <option value="900">Last 15m</option>
+            <option value="3600" selected>Last 1h</option>
+            <option value="21600">Last 6h</option>
+            <option value="86400">Last 24h</option>
+          </select>
+        </div>
+        <canvas id="traffic-chart" width="980" height="280"></canvas>
+        <div class="traffic-metrics">
+          <div><strong id="metric-blocked-chart">0</strong><span>Blocked attacks</span></div>
+          <div><strong id="metric-pending-chart">0</strong><span>Pending review sessions</span></div>
+        </div>
+      </section>
+
+      <section class="traffic-section">
+        <div class="section-head">
+          <div>
+            <span class="section-label">Attack vectors</span>
+            <h2>Blocked by vector</h2>
+          </div>
+        </div>
+        <ul id="vector-breakdown" class="vector-breakdown"></ul>
+      </section>
+
+      <section class="redteam-section">
+        <div class="section-head">
+          <div>
+            <span class="section-label">DVWA red team</span>
+            <h2>Launch safe and unsafe curl-style requests</h2>
+          </div>
+          <p class="section-note">
+            Each test sends a request through the WAF at <strong>http://localhost:8080</strong> and mirrors the
+            workflow from the project statement.
+          </p>
+        </div>
+        <div id="redteam-grid" class="redteam-grid"></div>
+        <div class="redteam-output">
+          <div class="redteam-output-head">
+            <span class="section-label">Latest run</span>
+            <span id="redteam-status" class="redteam-status">Idle</span>
+          </div>
+          <pre id="redteam-log">Pick a test case to launch a request through the WAF.</pre>
+        </div>
+      </section>
+
+      <section id="retrain" class="retrain-section">
+        <div class="section-head">
+          <div>
+            <span class="section-label">Retrain AI</span>
+            <h2>Current engine version and retrain trigger</h2>
+          </div>
+          <button type="button" id="refresh-ai-health" class="ghost-button">Refresh version</button>
+        </div>
+        <div class="retrain-grid">
+          <article class="retrain-card">
+            <span class="stats-label">status</span>
+            <strong class="health-line"><span id="ai-health-dot" class="status-dot neutral"></span><span id="ai-health-status">Loading...</span></strong>
+            <p class="stats-caption">Parsed directly from /health.</p>
+          </article>
+          <article class="retrain-card">
+            <span class="stats-label">model_name</span>
+            <strong id="ai-model-name">Loading...</strong>
+            <p class="stats-caption">Model returned by the AI health endpoint.</p>
+          </article>
+          <article class="retrain-card">
+            <span class="stats-label">last_checked_at</span>
+            <strong id="ai-last-checked-at">Loading...</strong>
+            <p class="stats-caption">Raw timestamp from the JSON payload.</p>
+          </article>
+          <article class="retrain-card">
+            <span class="stats-label">last_swapped_at</span>
+            <strong id="ai-last-swapped-at">Loading...</strong>
+            <p class="stats-caption">Raw timestamp from the JSON payload.</p>
+          </article>
+          <article class="retrain-card">
+            <span class="stats-label">last_error</span>
+            <strong id="ai-last-error">Loading...</strong>
+            <p class="stats-caption">Null means the last check was clean.</p>
+          </article>
+        </div>
+      </section>
     </section>
   </main>
   <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/redteam.js"></script>
 </body>
 </html>

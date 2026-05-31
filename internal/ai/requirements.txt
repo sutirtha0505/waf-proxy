@@ -1,0 +1,15 @@
+# API Framework
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+# Data Validation
+pydantic==2.11.7
+
+# Machine Learning
+transformers==4.53.0
+torch==2.8.0
+safetensors==0.5.3
+accelerate==1.9.0
+
+# Optional (recommended for HF model downloads)
+huggingface-hub==0.34.4

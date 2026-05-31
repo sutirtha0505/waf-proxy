@@ -3,6 +3,8 @@ window.openReview = async function openReview(id) {
   const summaryEl = document.getElementById("request-summary");
   const decisionEl = document.getElementById("request-decision");
   const confidenceEl = document.getElementById("request-confidence");
+  const decisionCopyEl = document.getElementById("request-decision-copy");
+  const confidenceCopyEl = document.getElementById("request-confidence-copy");
   const pre = document.getElementById("request-json");
   const vectorSelect = document.getElementById("vector-select");
   const req = await fetch(`/api/admin/requests/${id}`).then((r) => r.json());
@@ -18,8 +20,14 @@ window.openReview = async function openReview(id) {
       decisionEl.textContent = "Decision: pending human review";
     }
   }
+  if (decisionCopyEl) {
+    decisionCopyEl.textContent = decisionEl ? decisionEl.textContent : '';
+  }
   if (confidenceEl) {
     confidenceEl.textContent = req.confidence_label ? `Confidence: ${req.confidence_label}` : "Confidence: n/a";
+  }
+  if (confidenceCopyEl) {
+    confidenceCopyEl.textContent = confidenceEl ? confidenceEl.textContent : '';
   }
   vectorSelect.innerHTML = "";
   Object.entries(vectors).forEach(([name, code]) => {

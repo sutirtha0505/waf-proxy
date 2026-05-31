@@ -17,13 +17,17 @@ type Server struct {
 	httpServer *http.Server
 }
 
+type pageData struct {
+	Username string
+}
+
 func NewServer(cfg config.Config, repo storage.Repository) (*Server, error) {
 	authn := auth.New(repo)
 	sessions := auth.NewSessionManager("dev-secret-change-me", 8*time.Hour)
 	adminHandler := admin.NewHandler(repo)
 
 	mux := http.NewServeMux()
-	registerRoutes(mux, authn, sessions, adminHandler)
+	registerRoutes(mux, authn, sessions, adminHandler, cfg.AI.URL)
 
 	return &Server{httpServer: &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Dashboard.Port),
@@ -50,4 +54,8 @@ func render(w http.ResponseWriter, name string, data any) {
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func pageDataForRequest(r *http.Request, sessions *auth.SessionManager) pageData {
+	return pageData{Username: sessions.Username(r)}
 }

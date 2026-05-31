@@ -6,6 +6,110 @@ let refreshInFlight = false;
 let needsRefresh = false;
 let streamRetryTimer = null;
 
+function formatTimestamp(unixSeconds) {
+  if (!unixSeconds) return 'Unknown time';
+  const date = new Date(unixSeconds * 1000);
+  return `${unixSeconds} • ${date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
+function getDecisionState(row) {
+  if (row?.blocked_by_ai) return 'blocked';
+  if (row?.was_fail_open) return 'fail-open';
+  if (row?.decision_state === 'ai_review') return 'ai-reviewed';
+  if (row?.decision_state === 'pending_review') return 'pending';
+  return row?.decision_state || 'unknown';
+}
+
+function getStatusClass(row) {
+  if (row?.blocked_by_ai) return 'blocked';
+  if (row?.was_fail_open) return 'warning';
+  if (row?.decision_state === 'ai_review') return 'info';
+  return 'pending';
+}
+
+function renderRequestRow(row, { blocked = false } = {}) {
+  const li = document.createElement('li');
+  li.className = `request-row ${blocked ? 'is-blocked' : ''} ${row?.was_fail_open ? 'is-fail-open' : ''} ${row?.decision_state === 'pending_review' ? 'is-pending' : ''}`.trim();
+
+  const top = document.createElement('div');
+  top.className = 'request-top';
+
+  const titleWrap = document.createElement('div');
+  const route = document.createElement('div');
+  route.className = 'request-route';
+  route.textContent = `${row.method || 'GET'} ${row.path || '/'}`;
+  const id = document.createElement('div');
+  id.className = 'request-id';
+  id.textContent = row.request_id || 'Unknown request';
+  titleWrap.appendChild(route);
+  titleWrap.appendChild(id);
+
+  const badge = document.createElement('span');
+  badge.className = `badge ${getStatusClass(row)}`;
+  badge.textContent = getDecisionState(row);
+
+  top.appendChild(titleWrap);
+  top.appendChild(badge);
+
+  const body = document.createElement('div');
+  body.className = 'request-body';
+  const decision = row.decision_summary || 'Pending human review';
+  const confidence = row.confidence_label ? `Confidence ${row.confidence_label}` : 'Confidence n/a';
+  const timestamp = formatTimestamp(row.timestamp);
+  body.textContent = `${decision} • ${confidence} • ${timestamp}`;
+
+  const meta = document.createElement('div');
+  meta.className = 'request-metadata';
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'ghost-button';
+  openBtn.textContent = 'Open review';
+  openBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    window.openReview(row.request_id);
+  });
+
+  const checkWrap = document.createElement('label');
+  checkWrap.className = 'chip';
+  checkWrap.addEventListener('click', (event) => event.stopPropagation());
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.dataset.id = row.request_id;
+  cb.className = 'request-checkbox';
+  cb.addEventListener('click', (event) => event.stopPropagation());
+  cb.addEventListener('change', () => {
+    const selectAll = document.getElementById('select-all-cb');
+    if (!selectAll) return;
+    const all = Array.from(document.querySelectorAll('.request-checkbox'));
+    selectAll.checked = all.length > 0 && all.every((c) => c.checked);
+  });
+  const checkLabel = document.createElement('span');
+  checkLabel.textContent = 'Select';
+  checkWrap.appendChild(cb);
+  checkWrap.appendChild(checkLabel);
+
+  const tsChip = document.createElement('span');
+  tsChip.className = 'pill';
+  tsChip.textContent = timestamp;
+
+  meta.appendChild(openBtn);
+  meta.appendChild(checkWrap);
+  meta.appendChild(tsChip);
+
+  li.appendChild(top);
+  li.appendChild(body);
+  li.appendChild(meta);
+
+  li.addEventListener('click', () => window.openReview(row.request_id));
+  return li;
+}
+
 async function refreshRequestList() {
   if (refreshInFlight) {
     needsRefresh = true;
@@ -43,56 +147,17 @@ async function refreshRequestList() {
 
     // Render the latest blocked items first as a live context banner list.
     blocked.slice(0, 10).forEach((row) => {
-      const li = document.createElement('li');
-      li.style.color = 'crimson';
-      const badge = document.createElement('strong');
-      badge.textContent = 'AI-blocked';
-      badge.style.marginRight = '0.5rem';
-      const label = document.createElement('span');
-      label.textContent = row.request_id || '';
-      label.style.cursor = 'pointer';
-      label.addEventListener('click', () => window.openReview(row.request_id));
-      const meta = document.createElement('small');
-      const summary = row.decision_summary || 'Blocked by AI';
-      const confidence = row.confidence_label ? ` (${row.confidence_label})` : '';
-      meta.textContent = ` ${summary}${confidence}`;
-      meta.style.marginLeft = '0.5rem';
-      meta.style.opacity = '0.8';
-      li.appendChild(badge);
-      li.appendChild(label);
-      li.appendChild(meta);
-      list.appendChild(li);
+      list.appendChild(renderRequestRow(row, { blocked: true }));
     });
 
     rows.forEach((row) => {
-      const li = document.createElement("li");
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.dataset.id = row.request_id;
-      cb.className = "request-checkbox";
-      const label = document.createElement("span");
-      label.textContent = row.request_id;
-      label.style.cursor = "pointer";
-      label.addEventListener("click", () => window.openReview(row.request_id));
-      const meta = document.createElement("small");
-      const summary = row.decision_summary || 'Pending human review';
-      const confidence = row.confidence_label ? ` (${row.confidence_label})` : '';
-      meta.textContent = ` ${summary}${confidence}`;
-      meta.style.marginLeft = '0.5rem';
-      meta.style.opacity = '0.8';
-      cb.addEventListener('change', () => {
-        const selectAll = document.getElementById('select-all-cb');
-        if (!selectAll) return;
-        const all = Array.from(document.querySelectorAll('.request-checkbox'));
-        selectAll.checked = all.length > 0 && all.every((c) => c.checked);
-      });
-      // preserve select-all state when refreshing
+      const rowEl = renderRequestRow(row);
       const selectAll = document.getElementById('select-all-cb');
-      li.appendChild(meta);
-      if (selectAll && selectAll.checked) cb.checked = true;
-      li.appendChild(cb);
-      li.appendChild(label);
-      list.appendChild(li);
+      if (selectAll && selectAll.checked) {
+        const checkbox = rowEl.querySelector('.request-checkbox');
+        if (checkbox) checkbox.checked = true;
+      }
+      list.appendChild(rowEl);
     });
 
     const pageInfo = document.getElementById('page-info');
@@ -106,6 +171,8 @@ async function refreshRequestList() {
 
     const label = document.getElementById("count");
     if (label) label.textContent = `${totalPending} pending requests`;
+    const queueMetric = document.getElementById('metric-queue');
+    if (queueMetric) queueMetric.textContent = String(totalPending + blocked.length);
     lastCount = totalPending;
   } catch (err) {
     setBulkStatus(`Refresh error: ${err.message || String(err)}`);

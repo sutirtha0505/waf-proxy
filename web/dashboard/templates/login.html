@@ -8,10 +8,14 @@
 </head>
 <body>
   <main class="login">
-    <form method="post" action="/login">
+    <form method="post" action="/login" class="login-card">
+      <span class="eyebrow">Secure access</span>
       <h1>Smart WAF</h1>
-      <input name="username" placeholder="Username" autocomplete="username" required>
-      <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+      <p>Log in to review attacks, queue state, and blocked traffic in the dashboard.</p>
+      <div class="stack">
+        <input name="username" placeholder="Username" autocomplete="username" required>
+        <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+      </div>
       <button type="submit">Sign in</button>
     </form>
   </main>
