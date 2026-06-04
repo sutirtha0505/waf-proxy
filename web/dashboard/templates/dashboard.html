@@ -101,6 +101,7 @@
             <h2>Launch safe and unsafe curl-style requests</h2>
           </div>
           <p class="section-note">
+            Safe vectors are included first so you can quickly verify allowed traffic before running attack payloads.
             Each test sends a request through the WAF at <strong>http://localhost:8080</strong> and mirrors the
             workflow from the project statement.
           </p>
@@ -121,7 +122,10 @@
             <span class="section-label">Retrain AI</span>
             <h2>Current engine version and retrain trigger</h2>
           </div>
-          <button type="button" id="refresh-ai-health" class="ghost-button">Refresh version</button>
+          <div class="dashboard-toolbar-actions">
+            <button type="button" id="refresh-ai-health" class="ghost-button">Refresh version</button>
+            <button type="button" id="trigger-ai-retrain" class="success">Retrain AI</button>
+          </div>
         </div>
         <div class="retrain-grid">
           <article class="retrain-card">

